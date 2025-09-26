@@ -184,3 +184,56 @@ This project is licensed under the MIT License.
 - React Three Fiber community
 - Framer Motion for smooth animations
 - Tailwind CSS for utility-first styling
+
+---
+
+## Study Modules (Taxonomy, Otolith, eDNA)
+
+The Study section provides three scientist-oriented modules with a consistent grey glass UI over the stars background. They run fully client-side with mock-safe defaults and optional live data where noted.
+
+### 1) Taxonomy 🐠
+
+- Browse a marine hierarchy and search live via GBIF suggest (≥3 chars)
+- When a species is selected, the app loads:
+  - Scientific name and authorship
+  - Real rank and lineage (kingdom → species)
+  - Common names (vernaculars)
+  - Occurrence distribution by country (bar chart)
+  - Image thumbnails from GBIF (falls back to Wikipedia thumbnail if none)
+- Clickable lineage segments for quick navigation; per-session Favorites
+
+Data sources
+- GBIF Species/Occurrence API: `https://api.gbif.org/v1` (match, species, vernacularNames, facets, images)
+- Wikipedia REST (thumbnail fallback)
+
+Future integration
+- WoRMS (AphiaID, marine status) and FishBase traits via a server proxy
+- Caching and DB-backed favorites
+
+### 2) Otolith Morphology 🔬
+
+- Upload multiple images; select thumbnails to open a viewer
+- Viewer modes: Normal / Edge view (contrast + desaturate)
+- Annotate mode: click two points to add a length; calibration (px/mm) supported
+- Measurements table with CSV export and global filtering
+- Mock “AI Guess” (pluggable with real inference later)
+
+Future integration
+- Storage (Supabase/Cloudinary), serverless analysis (OpenCV/ML)
+- Auto edge tracing, ellipse fit, species/age estimation
+
+### 3) eDNA Data 🧬
+
+- Paste FASTA or upload `.fa/.fasta/.txt`
+- Choose marker (COI, 12S, 16S, rbcL, other) and set minimum identity threshold
+- Mock matcher computes identity vs. a small in-memory barcode set per marker
+- Results table (read, match, identity %, length, marker) with CSV export
+- Species distribution pie chart from matches
+
+Planned APIs
+- BOLD Systems API for barcodes; ENA/NCBI (E-utilities) for sequences/metadata
+- Optional serverless proxy for BLAST-like alignment and rate-limiting
+
+Notes
+- Modules handle empty states and graceful fallbacks so the UI always renders
+- Live calls are made directly from the browser; move to a backend proxy for production (rate limits, CORS, API keys)

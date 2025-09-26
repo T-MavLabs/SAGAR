@@ -1,5 +1,5 @@
-import React from 'react';
-import { FiArrowRight } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { FiArrowRight, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 import SearchWorldMap from './ui/search-world-map';
 import ReactGlobeComponent from './ReactGlobeComponent';
 import { DataPoint } from '../App';
@@ -63,6 +63,10 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
     occurrencesByYear = [],
     depthHistogram = [],
   } = result;
+
+  // Chart zoom state management
+  const [selectedChart, setSelectedChart] = useState<string | null>(null);
+  const [isZoomMode, setIsZoomMode] = useState(false);
 
   const years = occurrencesByYear
     .slice()
@@ -330,6 +334,166 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
 
   const globePoints: DataPoint[] = sampleDataPoints;
 
+  // Chart definitions for zoomable layout
+  const chartDefinitions = [
+    {
+      id: 'occurrences-by-year',
+      title: 'Occurrences by Year',
+      type: 'bar',
+      data: occurrencesBarData,
+      options: commonChartOptions,
+      hasData: years.length > 0
+    },
+    {
+      id: 'depth-profile',
+      title: 'Depth Profile',
+      type: 'line',
+      data: depthLineData,
+      options: commonChartOptions,
+      hasData: depthSorted.length > 0
+    },
+    {
+      id: 'water-body-distribution',
+      title: 'Water Body Distribution',
+      type: 'doughnut',
+      data: waterBodyDistribution,
+      options: {
+        ...commonChartOptions,
+        plugins: {
+          ...commonChartOptions.plugins,
+          legend: {
+            position: 'bottom' as const,
+            labels: { color: '#e5e7eb', padding: 10, font: { size: 10 } }
+          }
+        }
+      },
+      hasData: true
+    },
+    {
+      id: 'temperature-profile',
+      title: 'Temperature Profile',
+      type: 'line',
+      data: temperatureProfile,
+      options: commonChartOptions,
+      hasData: true
+    },
+    {
+      id: 'sampling-methods',
+      title: 'Sampling Methods',
+      type: 'bar',
+      data: samplingMethods,
+      options: commonChartOptions,
+      hasData: true
+    },
+    {
+      id: 'environmental-factors',
+      title: 'Environmental Factors',
+      type: 'radar',
+      data: environmentalFactors,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: '#e5e7eb', font: { size: 10 } }
+          }
+        },
+        scales: {
+          r: {
+            angleLines: { color: 'rgba(75,85,99,0.2)' },
+            grid: { color: 'rgba(75,85,99,0.2)' },
+            pointLabels: { color: '#9ca3af', font: { size: 10 } },
+            ticks: { color: '#9ca3af', backdropColor: 'transparent', font: { size: 8 } }
+          }
+        }
+      },
+      hasData: true
+    },
+    {
+      id: 'seasonal-distribution',
+      title: 'Seasonal Distribution',
+      type: 'bar',
+      data: seasonalDistribution,
+      options: commonChartOptions,
+      hasData: true
+    },
+    {
+      id: 'depth-distribution',
+      title: 'Depth Distribution',
+      type: 'bar',
+      data: depthDistribution,
+      options: commonChartOptions,
+      hasData: true
+    },
+    {
+      id: 'research-institutions',
+      title: 'Research Institutions',
+      type: 'doughnut',
+      data: researchInstitutions,
+      options: {
+        ...commonChartOptions,
+        plugins: {
+          ...commonChartOptions.plugins,
+          legend: {
+            position: 'bottom' as const,
+            labels: { color: '#e5e7eb', padding: 8, font: { size: 9 } }
+          }
+        }
+      },
+      hasData: true
+    },
+    {
+      id: 'conservation-trends',
+      title: 'Conservation Trends',
+      type: 'line',
+      data: conservationTrends,
+      options: commonChartOptions,
+      hasData: true
+    }
+  ];
+
+  // Chart click handlers
+  const handleChartClick = (chartId: string) => {
+    setSelectedChart(chartId);
+    setIsZoomMode(true);
+  };
+
+  const handleExitZoom = () => {
+    setIsZoomMode(false);
+    setSelectedChart(null);
+  };
+
+  // Render chart component based on type
+  const renderChart = (chart: any, isZoomed: boolean = false) => {
+    const height = isZoomed ? 'h-96' : 'h-48';
+    
+    if (!chart.hasData) {
+      return (
+        <div className={`w-full ${height} rounded-lg border border-gray-700/50 bg-gray-800/30 flex items-center justify-center text-gray-400 text-sm`}>
+          No data
+        </div>
+      );
+    }
+
+    const chartProps = {
+      data: chart.data,
+      options: chart.options
+    };
+
+    switch (chart.type) {
+      case 'bar':
+        return <Bar {...chartProps} />;
+      case 'line':
+        return <Line {...chartProps} />;
+      case 'doughnut':
+        return <Doughnut {...chartProps} />;
+      case 'radar':
+        return <Radar {...chartProps} />;
+      default:
+        return <Bar {...chartProps} />;
+    }
+  };
+
   return (
     <div className="w-full bg-black">
       {/* Back button */}
@@ -344,8 +508,70 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
           </button>
         </div>
       )}
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      {/* Zoom Mode Layout */}
+      {isZoomMode && selectedChart ? (
+        <div className="flex h-screen">
+          {/* Sidebar with all charts */}
+          <div className="w-80 bg-gray-900/50 backdrop-blur-sm border-r border-gray-700/50 overflow-y-auto">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">Charts</h3>
+                <button
+                  onClick={handleExitZoom}
+                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                  title="Exit Zoom Mode"
+                >
+                  <FiMinimize2 className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="space-y-3">
+                {chartDefinitions.map((chart) => (
+                  <div
+                    key={chart.id}
+                    onClick={() => setSelectedChart(chart.id)}
+                    className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                      selectedChart === chart.id
+                        ? 'border-marine-cyan bg-marine-cyan/10'
+                        : 'border-gray-700/50 bg-gray-800/30 hover:border-gray-600/50 hover:bg-gray-800/50'
+                    }`}
+                  >
+                    <h4 className="text-sm font-medium text-white mb-2">{chart.title}</h4>
+                    <div className="h-24">
+                      {renderChart(chart, false)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Main zoomed chart area */}
+          <div className="flex-1 p-6">
+            <div className="h-full bg-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-white">
+                  {chartDefinitions.find(c => c.id === selectedChart)?.title}
+                </h2>
+                <button
+                  onClick={handleExitZoom}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-white transition-colors duration-200"
+                >
+                  <FiMinimize2 className="w-4 h-4" />
+                  <span>Exit Zoom</span>
+                </button>
+              </div>
+              
+              <div className="h-full">
+                {renderChart(chartDefinitions.find(c => c.id === selectedChart)!, true)}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Normal Layout */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Analysis Summary */}
         <section className={`${cardClass} lg:col-span-1`}>
           <div className="flex items-start justify-between mb-4">
@@ -468,29 +694,29 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
 
           {/* Charts Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h3 className="text-sm font-semibold text-white mb-3">Occurrences by Year</h3>
+            <div 
+              className="cursor-pointer group"
+              onClick={() => handleChartClick('occurrences-by-year')}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-white">Occurrences by Year</h3>
+                <FiMaximize2 className="w-4 h-4 text-gray-400 group-hover:text-marine-cyan transition-colors" />
+              </div>
               <div className="h-48">
-              {years.length > 0 ? (
-                <Bar data={occurrencesBarData} options={commonChartOptions} />
-              ) : (
-                  <div className="w-full h-full rounded-lg border border-gray-700/50 bg-gray-800/30 flex items-center justify-center text-gray-400 text-sm">
-                  No data
-                </div>
-              )}
+                {renderChart(chartDefinitions.find(c => c.id === 'occurrences-by-year')!, false)}
+              </div>
             </div>
-          </div>
 
-            <div>
-              <h3 className="text-sm font-semibold text-white mb-3">Depth Profile</h3>
+            <div 
+              className="cursor-pointer group"
+              onClick={() => handleChartClick('depth-profile')}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-white">Depth Profile</h3>
+                <FiMaximize2 className="w-4 h-4 text-gray-400 group-hover:text-marine-cyan transition-colors" />
+              </div>
               <div className="h-48">
-              {depthSorted.length > 0 ? (
-                <Line data={depthLineData} options={commonChartOptions} />
-              ) : (
-                  <div className="w-full h-full rounded-lg border border-gray-700/50 bg-gray-800/30 flex items-center justify-center text-gray-400 text-sm">
-                  No data
-                </div>
-              )}
+                {renderChart(chartDefinitions.find(c => c.id === 'depth-profile')!, false)}
               </div>
             </div>
           </div>
@@ -498,118 +724,115 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
 
         {/* Additional Charts Section - Full width below */}
         <section className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className={cardClass}>
+          <div 
+            className={`${cardClass} cursor-pointer group`}
+            onClick={() => handleChartClick('water-body-distribution')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-white">Water Body Distribution</h3>
+              <FiMaximize2 className="w-4 h-4 text-gray-400 group-hover:text-marine-cyan transition-colors" />
             </div>
             <div className="h-48">
-              <Doughnut data={waterBodyDistribution} options={{
-                ...commonChartOptions,
-                plugins: {
-                  ...commonChartOptions.plugins,
-                  legend: {
-                    position: 'bottom' as const,
-                    labels: { color: '#e5e7eb', padding: 10, font: { size: 10 } }
-                  }
-                }
-              }} />
+              {renderChart(chartDefinitions.find(c => c.id === 'water-body-distribution')!, false)}
             </div>
           </div>
 
-          <div className={cardClass}>
+          <div 
+            className={`${cardClass} cursor-pointer group`}
+            onClick={() => handleChartClick('temperature-profile')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-white">Temperature Profile</h3>
+              <FiMaximize2 className="w-4 h-4 text-gray-400 group-hover:text-marine-cyan transition-colors" />
             </div>
             <div className="h-48">
-              <Line data={temperatureProfile} options={commonChartOptions} />
+              {renderChart(chartDefinitions.find(c => c.id === 'temperature-profile')!, false)}
             </div>
           </div>
 
-          <div className={cardClass}>
+          <div 
+            className={`${cardClass} cursor-pointer group`}
+            onClick={() => handleChartClick('sampling-methods')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-white">Sampling Methods</h3>
+              <FiMaximize2 className="w-4 h-4 text-gray-400 group-hover:text-marine-cyan transition-colors" />
             </div>
             <div className="h-48">
-              <Bar data={samplingMethods} options={commonChartOptions} />
+              {renderChart(chartDefinitions.find(c => c.id === 'sampling-methods')!, false)}
             </div>
           </div>
 
-          <div className={cardClass}>
+          <div 
+            className={`${cardClass} cursor-pointer group`}
+            onClick={() => handleChartClick('environmental-factors')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-white">Environmental Factors</h3>
+              <FiMaximize2 className="w-4 h-4 text-gray-400 group-hover:text-marine-cyan transition-colors" />
             </div>
             <div className="h-48">
-              <Radar data={environmentalFactors} options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    labels: { color: '#e5e7eb', font: { size: 10 } }
-                  }
-                },
-                scales: {
-                  r: {
-                    angleLines: { color: 'rgba(75,85,99,0.2)' },
-                    grid: { color: 'rgba(75,85,99,0.2)' },
-                    pointLabels: { color: '#9ca3af', font: { size: 10 } },
-                    ticks: { color: '#9ca3af', backdropColor: 'transparent', font: { size: 8 } }
-                  }
-                }
-              }} />
+              {renderChart(chartDefinitions.find(c => c.id === 'environmental-factors')!, false)}
             </div>
           </div>
         </section>
 
         {/* Second Row of Charts */}
         <section className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className={cardClass}>
+          <div 
+            className={`${cardClass} cursor-pointer group`}
+            onClick={() => handleChartClick('seasonal-distribution')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-white">Seasonal Distribution</h3>
+              <FiMaximize2 className="w-4 h-4 text-gray-400 group-hover:text-marine-cyan transition-colors" />
             </div>
             <div className="h-48">
-              <Bar data={seasonalDistribution} options={commonChartOptions} />
+              {renderChart(chartDefinitions.find(c => c.id === 'seasonal-distribution')!, false)}
             </div>
           </div>
 
-          <div className={cardClass}>
+          <div 
+            className={`${cardClass} cursor-pointer group`}
+            onClick={() => handleChartClick('depth-distribution')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-white">Depth Distribution</h3>
+              <FiMaximize2 className="w-4 h-4 text-gray-400 group-hover:text-marine-cyan transition-colors" />
             </div>
             <div className="h-48">
-              <Bar data={depthDistribution} options={commonChartOptions} />
+              {renderChart(chartDefinitions.find(c => c.id === 'depth-distribution')!, false)}
             </div>
           </div>
 
-          <div className={cardClass}>
+          <div 
+            className={`${cardClass} cursor-pointer group`}
+            onClick={() => handleChartClick('research-institutions')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-white">Research Institutions</h3>
+              <FiMaximize2 className="w-4 h-4 text-gray-400 group-hover:text-marine-cyan transition-colors" />
             </div>
             <div className="h-48">
-              <Doughnut data={researchInstitutions} options={{
-                ...commonChartOptions,
-                plugins: {
-                  ...commonChartOptions.plugins,
-                  legend: {
-                    position: 'bottom' as const,
-                    labels: { color: '#e5e7eb', padding: 8, font: { size: 9 } }
-                  }
-                }
-              }} />
+              {renderChart(chartDefinitions.find(c => c.id === 'research-institutions')!, false)}
             </div>
           </div>
 
-          <div className={cardClass}>
+          <div 
+            className={`${cardClass} cursor-pointer group`}
+            onClick={() => handleChartClick('conservation-trends')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-white">Conservation Trends</h3>
+              <FiMaximize2 className="w-4 h-4 text-gray-400 group-hover:text-marine-cyan transition-colors" />
             </div>
             <div className="h-48">
-              <Line data={conservationTrends} options={commonChartOptions} />
+              {renderChart(chartDefinitions.find(c => c.id === 'conservation-trends')!, false)}
             </div>
           </div>
         </section>
-
-
-      </div>
+        </div>
+      )}
     </div>
   );
 };

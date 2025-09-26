@@ -153,8 +153,10 @@ function Landmasses() {
 function GlobeContent(props) {
   const groupRef = useRef();
   const dataPoints = (props && props.dataPoints) || [];
+  const [isHovered, setIsHovered] = React.useState(false);
+  
   useFrame((_, delta) => {
-    if (groupRef.current) {
+    if (groupRef.current && !isHovered) {
       groupRef.current.rotation.y += delta * 0.02; // Slower, smoother rotation
     }
   });
@@ -181,7 +183,25 @@ function GlobeContent(props) {
     return /*#__PURE__*/React.createElement("mesh", {
       key: i,
       position: [v.x, v.y, v.z],
-      renderOrder: 5
+      renderOrder: 5,
+      onPointerOver: (e) => {
+        e.stopPropagation();
+        document.body.style.cursor = 'pointer';
+        setIsHovered(true); // Pause globe rotation
+        // Dispatch custom event with data point info
+        window.dispatchEvent(new CustomEvent('globe-point-hover', { 
+          detail: { 
+            dataPoint: p, 
+            position: { x: e.clientX, y: e.clientY }
+          } 
+        }));
+      },
+      onPointerOut: (e) => {
+        e.stopPropagation();
+        document.body.style.cursor = 'auto';
+        setIsHovered(false); // Resume globe rotation
+        window.dispatchEvent(new CustomEvent('globe-point-leave'));
+      }
     }, /*#__PURE__*/React.createElement("sphereGeometry", {
       args: [0.005, 8, 8]
     }), /*#__PURE__*/React.createElement("meshBasicMaterial", {

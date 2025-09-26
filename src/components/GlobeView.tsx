@@ -17,6 +17,8 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [dataLayer, setDataLayer] = useState<'Species Occurrences' | 'Sea Surface Temperature (SST)' | 'Salinity' | 'Chlorophyll Concentration' | 'eDNA Detections'>('Species Occurrences');
+  const [hoveredPoint, setHoveredPoint] = useState<DataPoint | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   type ActiveFilter = 
     | { type: 'species'; value: string }
     | { type: 'waterBody'; value: string }
@@ -56,6 +58,26 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
       setGlobeFocused(false);
     }
   }, [activeMode]);
+
+  // Add event listeners for globe hover events
+  useEffect(() => {
+    const handleGlobeHover = (event: CustomEvent) => {
+      setHoveredPoint(event.detail.dataPoint);
+      setTooltipPosition(event.detail.position);
+    };
+
+    const handleGlobeLeave = () => {
+      setHoveredPoint(null);
+    };
+
+    window.addEventListener('globe-point-hover', handleGlobeHover as EventListener);
+    window.addEventListener('globe-point-leave', handleGlobeLeave);
+
+    return () => {
+      window.removeEventListener('globe-point-hover', handleGlobeHover as EventListener);
+      window.removeEventListener('globe-point-leave', handleGlobeLeave);
+    };
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -216,7 +238,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   };
 
   return (
-    <div className="min-h-screen bg-marine-blue relative overflow-hidden">
+    <div className="min-h-screen bg-marine-blue relative overflow-visible">
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all ${globeFocused ? 'filter blur-sm pointer-events-none' : ''}`}>
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
@@ -601,6 +623,78 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
             })()}
           </aside>
         )}
+
+        {/* Hover Tooltip */}
+        {hoveredPoint && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            className="fixed z-[9999] pointer-events-none"
+            style={{
+              left: `${tooltipPosition.x + 10}px`,
+              top: `${tooltipPosition.y - 10}px`,
+              transform: 'translateX(-50%) translateY(-100%)'
+            }}
+          >
+            <div className="bg-gray-900/95 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4 shadow-2xl min-w-[280px]">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#0ea5e9' }}></div>
+                  <h4 className="text-sm font-semibold text-white">Location Details</h4>
+                </div>
+                
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Species:</span>
+                    <span className="text-gray-200">{hoveredPoint.scientificName || 'Unknown'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Locality:</span>
+                    <span className="text-gray-200">{hoveredPoint.locality || 'Unknown'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Coordinates:</span>
+                    <span className="text-gray-200">{hoveredPoint.decimalLatitude?.toFixed(4)}°, {hoveredPoint.decimalLongitude?.toFixed(4)}°</span>
+                  </div>
+                  {hoveredPoint.waterBody && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Water Body:</span>
+                      <span className="text-gray-200">{hoveredPoint.waterBody}</span>
+                    </div>
+                  )}
+                  {hoveredPoint.eventDate && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Date:</span>
+                      <span className="text-gray-200">{new Date(hoveredPoint.eventDate).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  {hoveredPoint.samplingProtocol && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Method:</span>
+                      <span className="text-gray-200">{hoveredPoint.samplingProtocol}</span>
+                    </div>
+                  )}
+                  {(hoveredPoint.minimumDepthInMeters || hoveredPoint.maximumDepthInMeters) && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Depth:</span>
+                      <span className="text-gray-200">
+                        {hoveredPoint.minimumDepthInMeters || '—'}m - {hoveredPoint.maximumDepthInMeters || '—'}m
+                      </span>
+                    </div>
+                  )}
+                  {hoveredPoint.identifiedBy && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Identified by:</span>
+                      <span className="text-gray-200">{hoveredPoint.identifiedBy}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
       ) : activeMode === 'Visualise' ? (
         <VisualiseView allData={dataPoints} />
@@ -785,7 +879,7 @@ function VisualiseView({ allData }: VisualiseViewProps) {
   };
 
   return (
-    <div className="pt-20 min-h-screen relative">
+    <div className="pt-20 min-h-screen relative overflow-visible">
       {/* Non-interactive globe background */}
       <Suspense fallback={null}>
         <div className="absolute inset-0 z-0 pointer-events-none opacity-90">
@@ -797,18 +891,18 @@ function VisualiseView({ allData }: VisualiseViewProps) {
           />
         </div>
       </Suspense>
-      <div className="relative z-10 max-w-6xl mx-auto px-6 py-10">
-        <div className="flex flex-wrap items-center gap-4 justify-between bg-white/5 border border-white/15 rounded-2xl px-4 py-3 backdrop-blur-md">
+      <div className="relative z-10 max-w-6xl mx-auto px-6 py-10 overflow-visible">
+        <div className="flex flex-wrap items-center gap-4 justify-between bg-white/5 border border-white/15 rounded-2xl px-4 py-3 backdrop-blur-md overflow-visible">
           <h2 className="text-2xl font-extrabold tracking-wide text-white">Visualise</h2>
           <div className="flex items-center gap-3">
             <Dropdown
               value={template}
-              onChange={(v) => setTemplate(v as typeof template)}
-              options={[...allowedCharts] as unknown as string[]}
+              onChange={(v) => setTemplate(v)}
+              options={allowedCharts.map(chart => chart.toString())}
             />
             <MultiSelect
               values={selectedDatasets}
-              onChange={(vals) => setSelectedDatasets(vals as any)}
+              onChange={(vals) => setSelectedDatasets(vals as Array<'occurrencesByYear' | 'depthHistogram' | 'waterBodies' | 'methods'>)}
               options={[
                 { value: 'occurrencesByYear', label: 'Occurrences Over Years' },
                 { value: 'depthHistogram', label: 'Depth Histogram' },
@@ -1097,38 +1191,25 @@ function MenuPortal({ children }: { children: React.ReactNode }) {
 
 function Dropdown({ value, onChange, options, maxWidth }: { value: string; onChange: (v: string) => void; options: string[]; maxWidth?: string }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ left: number; top: number; width: number; upward: boolean }>({ left: 0, top: 0, width: 0, upward: false });
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
   const btnRef = React.useRef<HTMLButtonElement | null>(null);
-  const compute = () => {
-    const el = btnRef.current; if (!el) return;
-    const r = el.getBoundingClientRect();
-    const left = r.left + window.scrollX;
-    const belowTop = r.bottom + window.scrollY + 8;
-    const menuHeight = Math.min(560, Math.max(240, window.innerHeight * 0.7));
-    const wouldOverflow = belowTop + menuHeight > window.scrollY + window.innerHeight;
-    const top = wouldOverflow ? (r.top + window.scrollY - 8) : belowTop; // if overflow, open upwards
-    setPos({ left, top, width: r.width, upward: wouldOverflow });
-  };
+  
   useEffect(() => {
     const onDoc = (e: MouseEvent | TouchEvent) => {
       if (!wrapperRef.current) return;
       const target = e.target as Node;
-      if (!wrapperRef.current.contains(target)) setOpen(false);
+      if (!wrapperRef.current.contains(target)) {
+        setOpen(false);
+      }
     };
-    const onWin = () => open && compute();
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('touchstart', onDoc as any, { passive: true } as any);
-    window.addEventListener('scroll', onWin, true);
-    window.addEventListener('resize', onWin);
     return () => {
       document.removeEventListener('mousedown', onDoc);
       document.removeEventListener('touchstart', onDoc as any);
-      window.removeEventListener('scroll', onWin, true);
-      window.removeEventListener('resize', onWin);
     };
-  }, [open]);
-  useEffect(() => { if (open) compute(); }, [open]);
+  }, []);
+  
   return (
     <div ref={wrapperRef} className="relative" style={{ maxWidth: maxWidth || '320px' }}>
       <button
@@ -1141,23 +1222,31 @@ function Dropdown({ value, onChange, options, maxWidth }: { value: string; onCha
         <span className={`transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
       </button>
       {open && (
-        <MenuPortal>
-          <div
-            className={`fixed ${pos.upward ? 'bottom-auto' : ''} bg-black/80 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl overflow-auto z-[99999]`}
-            style={{ left: pos.left, top: pos.upward ? undefined : pos.top, width: pos.width, maxHeight: '72vh', ...(pos.upward ? { bottom: window.innerHeight - pos.top } : {}) }}
-          >
-            {options.map(opt => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => { onChange(opt); setOpen(false); }}
-                className={`w-full text-left px-4 py-2 text-sm ${opt === value ? 'bg-white/15 text-white' : 'text-white/90 hover:bg-white/10'}`}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-        </MenuPortal>
+        <div
+          className="absolute top-full left-0 mt-2 bg-black/95 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl overflow-y-auto min-w-full"
+          style={{ 
+            pointerEvents: 'auto',
+            zIndex: 999999,
+            position: 'absolute',
+            maxHeight: '160px', // 4 items * 40px height
+            height: '160px'
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {options.map(opt => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => { 
+                onChange(opt); 
+                setOpen(false); 
+              }}
+              className={`w-full text-left px-4 py-2 text-sm ${opt === value ? 'bg-white/15 text-white' : 'text-white/90 hover:bg-white/10'} cursor-pointer`}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -1165,43 +1254,29 @@ function Dropdown({ value, onChange, options, maxWidth }: { value: string; onCha
 
 function MultiSelect({ values, onChange, options }: { values: string[]; onChange: (v: string[]) => void; options: { value: string; label: string }[] }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ left: number; top: number; width: number; upward: boolean }>({ left: 0, top: 0, width: 0, upward: false });
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
   const btnRef = React.useRef<HTMLButtonElement | null>(null);
-  const compute = () => {
-    const el = btnRef.current; if (!el) return;
-    const r = el.getBoundingClientRect();
-    const left = r.left + window.scrollX;
-    const belowTop = r.bottom + window.scrollY + 8;
-    const menuHeight = Math.min(560, Math.max(240, window.innerHeight * 0.7));
-    const wouldOverflow = belowTop + menuHeight > window.scrollY + window.innerHeight;
-    const top = wouldOverflow ? (r.top + window.scrollY - 8) : belowTop;
-    setPos({ left, top, width: r.width, upward: wouldOverflow });
-  };
+  
   useEffect(() => {
     const onDoc = (e: MouseEvent | TouchEvent) => {
       if (!wrapperRef.current) return;
       const target = e.target as Node;
       if (!wrapperRef.current.contains(target)) setOpen(false);
     };
-    const onWin = () => open && compute();
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('touchstart', onDoc as any, { passive: true } as any);
-    window.addEventListener('scroll', onWin, true);
-    window.addEventListener('resize', onWin);
     return () => {
       document.removeEventListener('mousedown', onDoc);
       document.removeEventListener('touchstart', onDoc as any);
-      window.removeEventListener('scroll', onWin, true);
-      window.removeEventListener('resize', onWin);
     };
-  }, [open]);
-  useEffect(() => { if (open) compute(); }, [open]);
+  }, []);
+  
   const toggle = (val: string) => {
     const set = new Set(values);
     if (set.has(val)) set.delete(val); else set.add(val);
     onChange(Array.from(set));
   };
+  
   return (
     <div ref={wrapperRef} className="relative" style={{ maxWidth: '340px' }}>
       <button ref={btnRef} type="button" onClick={() => setOpen(o=>!o)} className="px-4 py-2 rounded-xl bg-white/10 border border-white/25 text-white text-sm flex items-center justify-between gap-6 min-w-[240px] hover:bg-white/15">
@@ -1209,19 +1284,28 @@ function MultiSelect({ values, onChange, options }: { values: string[]; onChange
         <span className={`transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
       </button>
       {open && (
-        <MenuPortal>
-          <div
-            className="fixed bg-black/80 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl overflow-auto z-[99999]"
-            style={{ left: pos.left, top: pos.upward ? undefined : pos.top, width: pos.width, maxHeight: '72vh', ...(pos.upward ? { bottom: window.innerHeight - pos.top } : {}) }}
-          >
-            {options.map(opt => (
-              <label key={opt.value} className="flex items-center gap-3 px-4 py-2 text-sm text-white/90 hover:bg-white/10 cursor-pointer">
-                <input type="checkbox" checked={values.includes(opt.value)} onChange={() => toggle(opt.value)} />
-                <span>{opt.label}</span>
-              </label>
-            ))}
-          </div>
-        </MenuPortal>
+        <div
+          className="absolute top-full left-0 mt-2 bg-black/95 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl overflow-y-auto min-w-full"
+          style={{ 
+            pointerEvents: 'auto',
+            zIndex: 999999,
+            position: 'absolute',
+            maxHeight: '160px', // 4 items * 40px height
+            height: '160px'
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {options.map(opt => (
+            <label key={opt.value} className="flex items-center gap-3 px-4 py-2 text-sm text-white/90 hover:bg-white/10 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={values.includes(opt.value)} 
+                onChange={() => toggle(opt.value)} 
+              />
+              <span>{opt.label}</span>
+            </label>
+          ))}
+        </div>
       )}
     </div>
   );

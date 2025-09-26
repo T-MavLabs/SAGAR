@@ -1,9 +1,6 @@
 import React from 'react';
 import { DataPoint } from '../App';
 
-// Import the transpiled external Globe component (no JSX)
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - JS module without types
 import { Globe as ExternalGlobe } from '../external/transpiled/Globe.js';
 
 interface ReactGlobeComponentProps {

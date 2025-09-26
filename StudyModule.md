@@ -1,3 +1,58 @@
+## Study Modules (Taxonomy, Otolith, eDNA)
+
+The Study section provides three scientist-oriented modules with a consistent grey glass UI and a stars background. All modules run fully client-side with mock-safe defaults and optional live data.
+
+### 1) Taxonomy 🐠
+
+- Browse a mock marine hierarchy and search live via GBIF suggest (≥3 chars)
+- Select a species to load:
+  - Scientific name and authorship
+  - Rank and lineage (kingdom → species)
+  - Common names (vernaculars)
+  - Occurrence distribution by country (bar chart)
+  - Image thumbnails from occurrence media (falls back to Wikipedia thumbnail)
+- Clickable lineage breadcrumbs for quick navigation
+- Favorites list per session
+
+Data sources used
+- GBIF Species API: `https://api.gbif.org/v1` (match, species, vernacularNames)
+- GBIF Occurrence API: facets by country, images (mediaType=StillImage)
+- Wikipedia REST (fallback thumbnail)
+
+Future backend integration
+- Add WoRMS (AphiaID, marine status) and FishBase traits via a server proxy
+- Cache responses and store favorites in your DB
+
+### 2) Otolith Morphology 🔬
+
+- Upload multiple otolith images; select thumbnails to view
+- Viewer modes: Normal / Edge view (contrast + desaturate) for contours
+- Annotation mode: click two points to add a length measurement; supports calibration (px/mm)
+- Measurements table with CSV export and global filtering
+- Mock “AI Guess” action (pluggable with real inference later)
+
+Future backend integration
+- Image storage (Supabase/Cloudinary) and serverless analysis (OpenCV/ML)
+- Auto edge tracing, ellipse fit, and species/age estimation
+
+### 3) eDNA Data 🧬
+
+- Paste FASTA or upload `.fa/.fasta/.txt`
+- Choose marker (COI, 12S, 16S, rbcL, other) and set minimum identity threshold
+- Mock matcher computes identity vs. a small in-memory barcode set
+- Results table (read, match, identity %, length, marker) with CSV export
+- Species distribution pie chart from matches
+
+Planned API integration
+- BOLD Systems API for barcode matching
+- ENA/NCBI (E-utilities) for sequence retrieval and metadata
+- Optional serverless proxy for BLAST-like alignment
+
+### Notes
+
+- All modules handle empty states and fallbacks so the UI always renders
+- Live calls are made directly from the browser; move to a backend proxy for rate-limiting, CORS and API keys in production
+
 # CMLRE Marine Explorer
 
 A highly interactive, data-driven web application for marine biodiversity analysis built with React, Three.js, and modern web technologies.

@@ -150,8 +150,9 @@ function Landmasses() {
 }
 
 // --- Main Scene Content ---
-function GlobeContent() {
+function GlobeContent(props) {
   const groupRef = useRef();
+  const dataPoints = (props && props.dataPoints) || [];
   useFrame((_, delta) => {
     if (groupRef.current) {
       groupRef.current.rotation.y += delta * 0.02; // Slower, smoother rotation
@@ -175,7 +176,20 @@ function GlobeContent() {
     depthWrite: false
   })), /*#__PURE__*/React.createElement(Suspense, {
     fallback: null
-  }, /*#__PURE__*/React.createElement(Landmasses, null))));
+  }, /*#__PURE__*/React.createElement(Landmasses, null)), dataPoints && dataPoints.length > 0 && /*#__PURE__*/React.createElement("group", null, dataPoints.map((p, i) => {
+    const v = latLonToVector3(p.decimalLatitude, p.decimalLongitude, 2.06);
+    return /*#__PURE__*/React.createElement("mesh", {
+      key: i,
+      position: [v.x, v.y, v.z],
+      renderOrder: 5
+    }, /*#__PURE__*/React.createElement("sphereGeometry", {
+      args: [0.005, 8, 8]
+    }), /*#__PURE__*/React.createElement("meshBasicMaterial", {
+      color: "#ef4444",
+      depthTest: true,
+      depthWrite: false
+    }));
+  }))));
 }
 
 // --- Main Exported Globe Component ---
@@ -193,6 +207,7 @@ function CameraMonitor({ onChange }) {
 export function Globe(props) {
   const onCameraDistanceChange = props && props.onCameraDistanceChange;
   const showStarsOnly = !!(props && props.showStarsOnly);
+  const dataPoints = (props && props.dataPoints) || [];
   return /*#__PURE__*/React.createElement(Canvas, {
     camera: {
       position: [0, 0, 7.5],
@@ -215,7 +230,7 @@ export function Globe(props) {
     scale: [200, 200, 200]
   }), /*#__PURE__*/React.createElement(Suspense, {
     fallback: null
-  }, showStarsOnly ? null : /*#__PURE__*/React.createElement(GlobeContent, null)), /*#__PURE__*/React.createElement(OrbitControls, {
+  }, showStarsOnly ? null : /*#__PURE__*/React.createElement(GlobeContent, { dataPoints: dataPoints })), /*#__PURE__*/React.createElement(OrbitControls, {
     enablePan: false,
     enableZoom: true,
     minDistance: 4.5,

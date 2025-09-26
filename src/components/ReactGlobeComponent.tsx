@@ -15,10 +15,10 @@ interface ReactGlobeComponentProps {
   showStarsOnly?: boolean;
 }
 
-const ReactGlobeComponent: React.FC<ReactGlobeComponentProps> = ({ onCameraDistanceChange, showStarsOnly }) => {
+const ReactGlobeComponent: React.FC<ReactGlobeComponentProps> = ({ dataPoints, onDataPointClick, onCameraDistanceChange, showStarsOnly }) => {
   return (
     <div style={{ width: '100%', height: '100%', backgroundColor: 'black', position: 'relative' }}>
-      <ExternalGlobe onCameraDistanceChange={onCameraDistanceChange} showStarsOnly={showStarsOnly} />
+      <ExternalGlobe onCameraDistanceChange={onCameraDistanceChange} showStarsOnly={showStarsOnly} dataPoints={dataPoints} onDataPointClick={onDataPointClick} />
     </div>
   );
 };

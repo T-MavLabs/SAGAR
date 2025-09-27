@@ -173,7 +173,7 @@ function GlobeContent(props) {
     args: [2.031, 64, 64]
   }), /*#__PURE__*/React.createElement("meshBasicMaterial", {
     wireframe: true,
-    color: "#020f1f",
+    color: "rgb(17, 50, 90)",
     depthTest: true,
     depthWrite: false
   })), /*#__PURE__*/React.createElement(Suspense, {

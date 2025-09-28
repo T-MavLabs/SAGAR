@@ -119,7 +119,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI 
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="w-8 h-8 bg-gradient-to-r from-marine-cyan to-marine-green rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-marine-cyan rounded-lg flex items-center justify-center">
                 <span className="text-marine-blue font-bold text-sm">CM</span>
               </div>
               <span className="text-xl font-bold text-white">SAGAR</span>
@@ -128,21 +128,37 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
               {[
-                { name: 'Home', icon: FiHome, href: '#', onClick: undefined },
-                { name: 'Data Sources', icon: FiDatabase, href: 'https://sagar-data-ingestion.vercel.app/', onClick: undefined },
-                { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: onNavigateToAPI }
+                { name: 'Home', icon: FiHome, href: '#', onClick: undefined, isExternal: false },
+                { name: 'Data Sources', icon: FiDatabase, href: 'https://sagar-data-ingestion.vercel.app/', onClick: undefined, isExternal: true },
+                { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: onNavigateToAPI, isExternal: false }
               ].map((item, index) => (
-                <motion.button
-                  key={item.name}
-                  onClick={item.onClick}
-                  className="flex items-center space-x-2 text-gray-300 hover:text-marine-cyan transition-colors duration-200"
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                >
-                  <item.icon className="w-4 h-4" />
-                  <span>{item.name}</span>
-                </motion.button>
+                item.isExternal ? (
+                  <motion.a
+                    key={item.name}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-2 text-gray-300 hover:text-marine-cyan transition-colors duration-200"
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.name}</span>
+                  </motion.a>
+                ) : (
+                  <motion.button
+                    key={item.name}
+                    onClick={item.onClick}
+                    className="flex items-center space-x-2 text-gray-300 hover:text-marine-cyan transition-colors duration-200"
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.name}</span>
+                  </motion.button>
+                )
               ))}
             </nav>
 
@@ -178,7 +194,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI 
             </h1>
             <motion.button
               onClick={openModal}
-              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-marine-cyan to-marine-green text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200"
+              className="flex items-center space-x-2 px-6 py-3 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >

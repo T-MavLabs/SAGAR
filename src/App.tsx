@@ -33,53 +33,167 @@ export interface DataPoint {
 }
 
 function App() {
-  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'search' | 'globe' | 'api-docs'>('landing');
+  // Initialize view based on current URL
+  const getInitialView = () => {
+    const path = window.location.pathname;
+    if (path === '/api-docs' || path === '/api-documentation') return 'api-docs';
+    if (path === '/dashboard') return 'dashboard';
+    if (path.startsWith('/project/')) return 'globe';
+    if (path === '/globe') return 'globe';
+    if (path === '/search') return 'search';
+    return 'landing';
+  };
+
+  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'search' | 'globe' | 'api-docs'>(getInitialView());
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showLoader, setShowLoader] = React.useState(false);
   const [searchResult, setSearchResult] = React.useState<SearchResultSummary | null>(null);
 
-  // Handle URL-based navigation
-  useEffect(() => {
-    const path = window.location.pathname;
-    if (path === '/api-docs' || path === '/api-documentation') {
-      setCurrentView('api-docs');
-    } else if (path === '/dashboard') {
-      setCurrentView('dashboard');
-    } else if (path === '/globe') {
-      setCurrentView('globe');
-    } else if (path === '/search') {
-      setCurrentView('search');
-    } else {
-      setCurrentView('landing');
+  // Function to load project from database
+  const loadProjectFromDatabase = async (projectId: string) => {
+    try {
+      // Import supabase client
+      const { supabase } = await import('./services/supabaseClient');
+      
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
+
+      if (error) {
+        console.error('Error loading project:', error);
+        return;
+      }
+
+      if (data) {
+        const project: Project = {
+          id: String(data.id),
+          title: data.title,
+          description: data.description || '',
+          date: data.date || new Date().toISOString().slice(0, 10),
+          tags: ['Project'],
+          progress: Number(data.progress || 0),
+          waterBody: data.water_body || ''
+        };
+        setSelectedProject(project);
+        // Save to localStorage for future use
+        localStorage.setItem('sagar:selectedProject', JSON.stringify(project));
+      }
+    } catch (error) {
+      console.error('Error loading project from database:', error);
     }
+  };
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const path = window.location.pathname;
+      console.log('URL changed to:', path);
+      
+      if (path === '/api-docs' || path === '/api-documentation') {
+        setCurrentView('api-docs');
+      } else if (path === '/dashboard') {
+        setCurrentView('dashboard');
+      } else if (path.startsWith('/project/')) {
+        // Extract project ID from URL
+        const projectId = path.replace('/project/', '');
+        console.log('Loading project from URL:', projectId);
+        setCurrentView('globe');
+        // Load project data from localStorage first, then from database if needed
+        try {
+          const savedProject = localStorage.getItem('sagar:selectedProject');
+          if (savedProject) {
+            const project = JSON.parse(savedProject);
+            if (project.id === projectId) {
+              setSelectedProject(project);
+            } else {
+              // Project ID doesn't match, need to load from database
+              loadProjectFromDatabase(projectId);
+            }
+          } else {
+            // No saved project, load from database
+            loadProjectFromDatabase(projectId);
+          }
+        } catch (e) {
+          console.error('Error loading project:', e);
+          loadProjectFromDatabase(projectId);
+        }
+      } else if (path === '/globe') {
+        setCurrentView('globe');
+      } else if (path === '/search') {
+        setCurrentView('search');
+      } else {
+        setCurrentView('landing');
+      }
+    };
+
+    // Listen for browser back/forward navigation
+    window.addEventListener('popstate', handleRouteChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+    };
   }, []);
 
   // Update URL when view changes
   useEffect(() => {
-    const path = window.location.pathname;
-    let newPath = '/';
+    const currentPath = window.location.pathname;
+    let targetPath = '/';
     
     switch (currentView) {
       case 'api-docs':
-        newPath = '/api-docs';
+        targetPath = '/api-docs';
         break;
       case 'dashboard':
-        newPath = '/dashboard';
+        targetPath = '/dashboard';
         break;
       case 'globe':
-        newPath = '/globe';
+        if (selectedProject) {
+          targetPath = `/project/${selectedProject.id}`;
+        } else {
+          targetPath = '/globe';
+        }
         break;
       case 'search':
-        newPath = '/search';
+        targetPath = '/search';
         break;
       default:
-        newPath = '/';
+        targetPath = '/';
     }
     
-    if (path !== newPath) {
-      window.history.pushState({}, '', newPath);
+    // Update URL if it's different from current path
+    if (currentPath !== targetPath) {
+      console.log('Updating URL from', currentPath, 'to', targetPath);
+      window.history.pushState({}, '', targetPath);
     }
-  }, [currentView]);
+  }, [currentView, selectedProject]);
+
+  // Handle initial project loading from URL
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/project/')) {
+      const projectId = path.replace('/project/', '');
+      console.log('Initial load: Loading project from URL:', projectId);
+      
+      // Try to load from localStorage first
+      try {
+        const savedProject = localStorage.getItem('sagar:selectedProject');
+        if (savedProject) {
+          const project = JSON.parse(savedProject);
+          if (project.id === projectId) {
+            setSelectedProject(project);
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('Error loading project from localStorage:', e);
+      }
+      
+      // If not found in localStorage, load from database
+      loadProjectFromDatabase(projectId);
+    }
+  }, []);
 
   const handleProjectSelect = (project: Project) => {
     console.log('App: Project selected, navigating to globe view');
@@ -106,24 +220,16 @@ function App() {
   }, []);
 
 
-  // Restore view state on first load
+  // Restore additional state from localStorage (but don't override URL-based view)
   React.useEffect(() => {
     try {
-      const savedView = localStorage.getItem('sagar:view');
       const savedResult = localStorage.getItem('sagar:searchResult');
       const savedProject = localStorage.getItem('sagar:selectedProject');
-      if (savedView === 'search' && savedResult) {
+      if (savedResult) {
         setSearchResult(JSON.parse(savedResult));
-        setCurrentView('search');
-      } else if (savedView === 'globe') {
-        if (savedProject) {
-          setSelectedProject(JSON.parse(savedProject));
-        }
-        setCurrentView('globe');
-      } else if (savedView === 'dashboard') {
-        setCurrentView('dashboard');
-      } else {
-        // default remains 'landing'
+      }
+      if (savedProject) {
+        setSelectedProject(JSON.parse(savedProject));
       }
     } catch {}
   }, []);

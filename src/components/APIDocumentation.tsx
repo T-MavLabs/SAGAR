@@ -133,7 +133,7 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="w-8 h-8 bg-gradient-to-r from-marine-cyan to-marine-green rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-marine-cyan rounded-lg flex items-center justify-center">
                 <span className="text-marine-blue font-bold text-sm">CM</span>
               </div>
               <span className="text-xl font-bold text-white">SAGAR</span>
@@ -142,25 +142,41 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
               {[
-                { name: 'Home', icon: FiHome, href: '#', onClick: onBack },
-                { name: 'Data Sources', icon: FiDatabase, href: 'https://sagar-data-ingestion.vercel.app/' },
-                { name: 'API Documentation', icon: FiDollarSign, href: '#', active: true }
+                { name: 'Home', icon: FiHome, href: '#', onClick: onBack, isExternal: false },
+                { name: 'Data Sources', icon: FiDatabase, href: 'https://sagar-data-ingestion.vercel.app/', onClick: undefined, isExternal: true },
+                { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: undefined, isExternal: false, active: true }
               ].map((item, index) => (
-                <motion.button
-                  key={item.name}
-                  onClick={item.onClick}
-                  className={`flex items-center space-x-2 transition-colors duration-200 ${
-                    item.active 
-                      ? 'text-marine-cyan' 
-                      : 'text-gray-300 hover:text-marine-cyan'
-                  }`}
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                >
-                  <item.icon className="w-4 h-4" />
-                  <span>{item.name}</span>
-                </motion.button>
+                item.isExternal ? (
+                  <motion.a
+                    key={item.name}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-2 text-gray-300 hover:text-marine-cyan transition-colors duration-200"
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.name}</span>
+                  </motion.a>
+                ) : (
+                  <motion.button
+                    key={item.name}
+                    onClick={item.onClick}
+                    className={`flex items-center space-x-2 transition-colors duration-200 ${
+                      item.active 
+                        ? 'text-marine-cyan' 
+                        : 'text-gray-300 hover:text-marine-cyan'
+                    }`}
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.name}</span>
+                  </motion.button>
+                )
               ))}
             </nav>
 
@@ -201,25 +217,50 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
 
           {/* Tab Navigation */}
           <motion.div 
-            className="flex justify-center mb-8"
+            className="mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <div className="bg-gray-900/50 backdrop-blur-sm rounded-lg p-1 border border-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {tabs.map((tab) => (
-                <button
+                <motion.button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-6 py-3 rounded-md transition-all duration-200 ${
+                  className={`group relative cursor-pointer bg-gray-900/50 backdrop-blur-sm border rounded-xl p-6 transition-all duration-300 ${
                     activeTab === tab.id
-                      ? 'bg-gradient-to-r from-marine-cyan to-marine-green text-marine-blue font-semibold'
-                      : 'text-gray-300 hover:text-white hover:bg-gray-800/50'
+                      ? 'border-marine-cyan/50 shadow-lg shadow-marine-cyan/10'
+                      : 'border-gray-700/50 hover:border-marine-cyan/50 hover:shadow-lg hover:shadow-marine-cyan/10'
                   }`}
+                  whileHover={{ y: -2 }}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  <tab.icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </button>
+                  {/* Glow effect on hover */}
+                  <div className={`absolute inset-0 rounded-xl transition-opacity duration-300 ${
+                    activeTab === tab.id
+                      ? 'bg-marine-cyan/10 opacity-100'
+                      : 'bg-marine-cyan/5 opacity-0 group-hover:opacity-100'
+                  }`} />
+                  
+                  <div className="relative flex flex-col items-center space-y-3">
+                    <div className={`p-3 rounded-lg ${
+                      activeTab === tab.id
+                        ? 'bg-marine-cyan text-marine-blue'
+                        : 'bg-gray-800/50 text-gray-300 group-hover:text-marine-cyan'
+                    }`}>
+                      <tab.icon className="w-6 h-6" />
+                    </div>
+                    <span className={`font-medium transition-colors duration-200 ${
+                      activeTab === tab.id
+                        ? 'text-marine-cyan'
+                        : 'text-gray-300 group-hover:text-white'
+                    }`}>
+                      {tab.label}
+                    </span>
+                  </div>
+                </motion.button>
               ))}
             </div>
           </motion.div>
@@ -320,7 +361,7 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
 
                       <button
                         onClick={handleOccurrenceFetch}
-                        className="w-full px-6 py-3 bg-gradient-to-r from-marine-cyan to-marine-green text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200"
+                        className="w-full px-6 py-3 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200"
                       >
                         🚀 Fetch Occurrences
                       </button>
@@ -396,7 +437,7 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
                         <h4 className="text-lg font-medium text-white">Total Occurrences by Water Body</h4>
                         <div className="grid grid-cols-3 gap-4">
                           {Object.entries(mockOccurrencesData).map(([waterBody, data]) => (
-                            <div key={waterBody} className="bg-gradient-to-r from-marine-cyan/20 to-marine-green/20 p-4 rounded-lg border border-marine-cyan/30">
+                            <div key={waterBody} className="bg-marine-cyan/20 p-4 rounded-lg border border-marine-cyan/30">
                               <div className="text-2xl font-bold text-marine-cyan">{data.total}</div>
                               <div className="text-sm text-gray-300">{waterBody}</div>
                             </div>
@@ -444,7 +485,7 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
                     />
                     <button
                       onClick={handleTaxonomySearch}
-                      className="px-6 py-3 bg-gradient-to-r from-marine-cyan to-marine-green text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200"
+                      className="px-6 py-3 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200"
                     >
                       Search
                     </button>
@@ -596,7 +637,7 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
 
                       <button
                         onClick={handleEDNAAnalysis}
-                        className="w-full px-6 py-3 bg-gradient-to-r from-marine-cyan to-marine-green text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200"
+                        className="w-full px-6 py-3 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200"
                       >
                         Submit for Analysis
                       </button>
@@ -636,7 +677,7 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
                         <h4 className="text-lg font-medium text-white">eDNA Match Distribution</h4>
                         <div className="grid grid-cols-3 gap-4">
                           {Object.entries(mockEDNAResults.summary).map(([species, count]) => (
-                            <div key={species} className="bg-gradient-to-r from-marine-cyan/20 to-marine-green/20 p-4 rounded-lg border border-marine-cyan/30">
+                            <div key={species} className="bg-marine-cyan/20 p-4 rounded-lg border border-marine-cyan/30">
                               <div className="text-2xl font-bold text-marine-cyan">{count}%</div>
                               <div className="text-sm text-gray-300">{species}</div>
                             </div>

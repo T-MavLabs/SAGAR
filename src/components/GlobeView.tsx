@@ -255,7 +255,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
 
             <div className="text-center">
               <h1 className="text-xl font-bold text-white">
-                {selectedProject?.title ?? 'SAGAR - (Spatio-temporal Analytics Gateway for Aquatic Resources)'}
+                {selectedProject?.title ?? 'Arabian Sea Plankton Study'}
               </h1>
             <div className="mt-2 flex justify-center">
               <div className="inline-flex bg-white/15 border border-white/25 rounded-xl overflow-hidden backdrop-blur-sm">

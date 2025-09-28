@@ -121,7 +121,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI 
             >
               <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
                 <img 
-                  src="/WhatsApp Image 2025-09-28 at 19.47.34.jpeg" 
+                  src="/WhatsApp Image 2025-09-29 at 03.04.02.jpeg" 
                   alt="SAGAR Logo" 
                   className="w-full h-full object-contain"
                 />

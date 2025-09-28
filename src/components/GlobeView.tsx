@@ -41,6 +41,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   const [insight, setInsight] = useState<string | null>(null);
   const [activeMode, setActiveMode] = useState<'Analyse' | 'Visualise' | 'Study'>('Analyse');
   const [globeFocused, setGlobeFocused] = useState<boolean>(false);
+  const [resetCamera, setResetCamera] = useState<(() => void) | null>(null);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -504,7 +505,12 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
             {globeFocused && (
               <button
                 type="button"
-                onClick={() => setGlobeFocused(false)}
+                onClick={() => {
+                  setGlobeFocused(false);
+                  if (resetCamera) {
+                    resetCamera();
+                  }
+                }}
                 className="absolute z-50 top-4 left-4 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 border border-white/30 text-white text-sm backdrop-blur-md transition-colors"
               >
                 Back to normal view
@@ -520,6 +526,9 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
                   // Blur UI automatically when zoomed in close (smaller distance)
                   const shouldFocus = d < 5.2; // threshold just beyond minDistance
                   setGlobeFocused(prev => shouldFocus ? true : prev && shouldFocus);
+                }}
+                onResetCamera={(resetFunction) => {
+                  setResetCamera(() => resetFunction);
                 }}
               />
             </div>

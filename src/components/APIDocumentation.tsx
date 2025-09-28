@@ -135,7 +135,7 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
             >
               <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
                 <img 
-                  src="/WhatsApp Image 2025-09-28 at 19.47.34.jpeg" 
+                  src="/WhatsApp Image 2025-09-29 at 03.04.02.jpeg" 
                   alt="SAGAR Logo" 
                   className="w-full h-full object-contain"
                 />
@@ -367,7 +367,7 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
                         onClick={handleOccurrenceFetch}
                         className="w-full px-6 py-3 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200"
                       >
-                        🚀 Fetch Occurrences
+                         Fetch Occurrences
                       </button>
                     </div>
                   </div>

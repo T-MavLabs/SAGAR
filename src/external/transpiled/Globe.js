@@ -224,8 +224,44 @@ function CameraMonitor({ onChange }) {
   return null;
 }
 
+// Camera Reset Component
+function CameraReset({ onReset }) {
+  const { camera } = useThree();
+  const controlsRef = useRef();
+  
+  // Store initial camera position and target
+  const initialPosition = useRef([0, 0, 7.5]);
+  const initialTarget = useRef([0, 0, 0]);
+  
+  // Expose reset function to parent
+  React.useEffect(() => {
+    if (onReset) {
+      onReset(() => {
+        if (controlsRef.current) {
+          // Reset camera position
+          camera.position.set(...initialPosition.current);
+          camera.lookAt(...initialTarget.current);
+          // Reset controls
+          controlsRef.current.target.set(...initialTarget.current);
+          controlsRef.current.update();
+        }
+      });
+    }
+  }, [camera, onReset]);
+  
+  return /*#__PURE__*/React.createElement(OrbitControls, {
+    ref: controlsRef,
+    enablePan: false,
+    enableZoom: true,
+    minDistance: 4.5,
+    maxDistance: 10,
+    autoRotate: false
+  });
+}
+
 export function Globe(props) {
   const onCameraDistanceChange = props && props.onCameraDistanceChange;
+  const onResetCamera = props && props.onResetCamera;
   const showStarsOnly = !!(props && props.showStarsOnly);
   const dataPoints = (props && props.dataPoints) || [];
   return /*#__PURE__*/React.createElement(Canvas, {
@@ -250,11 +286,5 @@ export function Globe(props) {
     scale: [200, 200, 200]
   }), /*#__PURE__*/React.createElement(Suspense, {
     fallback: null
-  }, showStarsOnly ? null : /*#__PURE__*/React.createElement(GlobeContent, { dataPoints: dataPoints })), /*#__PURE__*/React.createElement(OrbitControls, {
-    enablePan: false,
-    enableZoom: true,
-    minDistance: 4.5,
-    maxDistance: 10,
-    autoRotate: false
-  }), /*#__PURE__*/React.createElement(CameraMonitor, { onChange: onCameraDistanceChange }));
+  }, showStarsOnly ? null : /*#__PURE__*/React.createElement(GlobeContent, { dataPoints: dataPoints })), /*#__PURE__*/React.createElement(CameraReset, { onReset: onResetCamera }), /*#__PURE__*/React.createElement(CameraMonitor, { onChange: onCameraDistanceChange }));
 }

@@ -4,9 +4,10 @@ import { FiHome, FiDatabase, FiDollarSign, FiLogOut, FiCode, FiSearch, FiBarChar
 
 interface APIDocumentationProps {
   onBack: () => void;
+  onLogout?: () => void;
 }
 
-const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
+const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack, onLogout }) => {
   const [activeTab, setActiveTab] = useState<'occurrences' | 'taxonomy' | 'edna'>('occurrences');
   
   // Mock data
@@ -192,7 +193,10 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack }) => {
               transition={{ duration: 0.5 }}
             >
               <span className="text-sm text-gray-300">Welcome, Dr. Vinu</span>
-              <button className="flex items-center space-x-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200">
+              <button 
+                onClick={onLogout}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200"
+              >
                 <FiLogOut className="w-4 h-4" />
                 <span>Logout</span>
               </button>

@@ -278,7 +278,11 @@ function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <Dashboard onProjectSelect={handleProjectSelect} onNavigateToAPI={() => setCurrentView('api-docs')} />
+            <Dashboard 
+              onProjectSelect={handleProjectSelect} 
+              onNavigateToAPI={() => setCurrentView('api-docs')} 
+              onLogout={() => setCurrentView('landing')}
+            />
           </motion.div>
         ) : currentView === 'search' ? (
           <motion.div
@@ -317,7 +321,10 @@ function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <APIDocumentation onBack={() => setCurrentView('dashboard')} />
+            <APIDocumentation 
+              onBack={() => setCurrentView('dashboard')} 
+              onLogout={() => setCurrentView('landing')}
+            />
           </motion.div>
         ) : (
           <motion.div

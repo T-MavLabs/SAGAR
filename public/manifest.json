@@ -3,14 +3,14 @@
   "name": "SAGAR - (Spatio-temporal Analytics Gateway for Aquatic Resources)",
   "icons": [
     {
-      "src": "WhatsApp Image 2025-09-29 at 03.04.02.jpeg",
+      "src": "Gemini_Generated_Image_2cpwvo2cpwvo2cpw-removebg-preview.png",
       "sizes": "192x192",
-      "type": "image/jpeg"
+      "type": "image/png"
     },
     {
-      "src": "WhatsApp Image 2025-09-29 at 03.04.02.jpeg",
+      "src": "Gemini_Generated_Image_2cpwvo2cpwvo2cpw-removebg-preview.png",
       "sizes": "512x512",
-      "type": "image/jpeg"
+      "type": "image/png"
     }
   ],
   "start_url": ".",

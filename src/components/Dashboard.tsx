@@ -8,9 +8,10 @@ import { supabase } from '../services/supabaseClient';
 interface DashboardProps {
   onProjectSelect: (project: Project) => void;
   onNavigateToAPI: () => void;
+  onLogout?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI, onLogout }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -174,7 +175,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI 
               transition={{ duration: 0.5 }}
             >
               <span className="text-sm text-gray-300">Welcome, Dr. Vinu</span>
-              <button className="flex items-center space-x-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200">
+              <button 
+                onClick={onLogout}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200"
+              >
                 <FiLogOut className="w-4 h-4" />
                 <span>Logout</span>
               </button>

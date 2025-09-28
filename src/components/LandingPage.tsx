@@ -47,7 +47,7 @@ const LandingPage: React.FC<{ onEnter: () => void }>= ({ onEnter }) => {
           <button
             ref={ctaRef}
             onClick={onEnter}
-            className="px-6 py-3 bg-gradient-to-r from-marine-cyan to-marine-green text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all"
+            className="px-6 py-3 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all"
             style={{ transform: 'scale(0.9)', opacity: 0 }}
           >
             Enter Dashboard

@@ -119,8 +119,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI 
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="w-8 h-8 bg-marine-cyan rounded-lg flex items-center justify-center">
-                <span className="text-marine-blue font-bold text-sm">CM</span>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+                <img 
+                  src="/WhatsApp Image 2025-09-28 at 19.47.34.jpeg" 
+                  alt="SAGAR Logo" 
+                  className="w-full h-full object-contain"
+                />
               </div>
               <span className="text-xl font-bold text-white">SAGAR</span>
             </motion.div>

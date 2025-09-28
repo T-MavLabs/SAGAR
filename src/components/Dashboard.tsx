@@ -128,9 +128,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect }) => {
             <nav className="hidden md:flex items-center space-x-8">
               {[
                 { name: 'Home', icon: FiHome, href: '#' },
-                { name: 'About', icon: FiInfo, href: '#' },
                 { name: 'Data Sources', icon: FiDatabase, href: 'https://sagar-data-ingestion.vercel.app/' },
-                { name: 'Pricing', icon: FiDollarSign, href: '#' }
+                { name: 'API Documentation', icon: FiDollarSign, href: '#' }
               ].map((item, index) => (
                 <motion.a
                   key={item.name}

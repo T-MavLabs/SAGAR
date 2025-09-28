@@ -274,8 +274,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
               </div>
             </div>
             <div className="mt-2 h-5 flex items-center justify-center">
-              <p className={`text-sm text-gray-400 ${activeMode === 'Analyse' ? '' : 'opacity-0'}`}>Interactive 3D Globe Visualization</p>
-            </div>
+             </div>
             </div>
             <div className="w-32" />
           </div>
@@ -490,8 +489,6 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
               </div>
             </div>
 
-            {/* Specialized Data Modules */}
-            <SpecializedModules />
           </div>
         </motion.div>
 
@@ -551,15 +548,24 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
               <input
                 type="text"
                 placeholder="Ask the Ocean..."
-                className="flex-1 bg-transparent outline-none text-white placeholder-white/80 tracking-wide"
+                className="flex-1 bg-transparent outline-none text-white placeholder-white/80 tracking-wide disabled:opacity-50"
                 value={analysisInput}
                 onChange={(e) => setAnalysisInput(e.target.value)}
+                disabled={isAnalyzing}
               />
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-white/10 border border-white/30 text-white hover:bg-white/15 transition-colors"
+                disabled={isAnalyzing || !analysisInput.trim()}
+                className="px-5 py-2 rounded-xl bg-white/10 border border-white/30 text-white hover:bg-white/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
-                Analyze
+                {isAnalyzing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Analyzing...</span>
+                  </>
+                ) : (
+                  <span>Analyze</span>
+                )}
               </button>
             </form>
           </div>
@@ -584,39 +590,39 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
               return (
                 <>
                   <Card className="pointer-events-auto">
-                    <CardSkeletonContainer className="h-20" showGradient={false}>
-                      <div />
-                    </CardSkeletonContainer>
                     <CardTitle>Total Occurrences</CardTitle>
                     <CardDescription className="text-2xl font-semibold tracking-wide text-marine-cyan">{total}</CardDescription>
+                    <div className="mt-3 h-24">
+                      <SpeciesDistributionChart data={filteredData} />
+                    </div>
                   </Card>
                   <Card className="pointer-events-auto">
-                    <CardSkeletonContainer className="h-20" showGradient={false}>
-                      <div />
-                    </CardSkeletonContainer>
                     <CardTitle>Unique Species</CardTitle>
                     <CardDescription className="text-2xl font-semibold tracking-wide text-marine-cyan">{uniqueSpeciesCount}</CardDescription>
+                    <div className="mt-3 h-24">
+                      <TopSpeciesChart data={filteredData} />
+                    </div>
                   </Card>
                   <Card className="pointer-events-auto">
-                    <CardSkeletonContainer className="h-20" showGradient={false}>
-                      <div />
-                    </CardSkeletonContainer>
                     <CardTitle>Water Bodies Covered</CardTitle>
                     <CardDescription className="text-2xl font-semibold tracking-wide text-marine-cyan">{uniqueWaterBodiesCount}</CardDescription>
+                    <div className="mt-3 h-24">
+                      <WaterBodyDistributionChart data={filteredData} />
+                    </div>
                   </Card>
                   <Card className="pointer-events-auto">
-                    <CardSkeletonContainer className="h-16" showGradient={false}>
-                      <div />
-                    </CardSkeletonContainer>
                     <CardTitle>Date Range</CardTitle>
                     <CardDescription className="text-white/80">{minDate} — {maxDate}</CardDescription>
+                    <div className="mt-3 h-24">
+                      <TemporalDistributionChart data={filteredData} />
+                    </div>
                   </Card>
                   <Card className="pointer-events-auto">
-                    <CardSkeletonContainer className="h-16" showGradient={false}>
-                      <div />
-                    </CardSkeletonContainer>
                     <CardTitle>Depth Range</CardTitle>
                     <CardDescription className="text-white/80">{minDepth !== null && maxDepth !== null ? `${minDepth}m — ${maxDepth}m` : 'N/A'}</CardDescription>
+                    <div className="mt-3 h-24">
+                      <DepthDistributionChart data={filteredData} />
+                    </div>
                   </Card>
                 </>
               );
@@ -1311,6 +1317,308 @@ function MultiSelect({ values, onChange, options }: { values: string[]; onChange
   );
 }
 
+// Chart Components for Data Visualization
+function SpeciesDistributionChart({ data }: { data: DataPoint[] }) {
+  const speciesCounts = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    data.forEach(point => {
+      const species = point.scientificName;
+      if (species) counts[species] = (counts[species] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+  }, [data]);
+
+  const total = speciesCounts.reduce((sum, item) => sum + item.count, 0);
+  const maxCount = Math.max(...speciesCounts.map(item => item.count));
+
+  return (
+    <div className="w-full h-full">
+      <svg viewBox="0 0 280 96" className="w-full h-full">
+        {speciesCounts.map((item, index) => {
+          const width = (item.count / maxCount) * 220;
+          const x = 10;
+          const y = index * 16 + 8;
+          const height = 14;
+          
+          return (
+            <g key={item.name}>
+              <rect
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                fill="#22d3ee"
+                fillOpacity={0.7}
+                rx={2}
+              />
+              <text
+                x={x + width + 8}
+                y={y + height/2 + 4}
+                fill="#e5e7eb"
+                fontSize="9"
+                dominantBaseline="middle"
+              >
+                {item.name.length > 12 ? item.name.substring(0, 12) + '...' : item.name} ({item.count})
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function TopSpeciesChart({ data }: { data: DataPoint[] }) {
+  const speciesCounts = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    data.forEach(point => {
+      const species = point.scientificName;
+      if (species) counts[species] = (counts[species] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 3)
+      .map(([name, count]) => ({ name, count }));
+  }, [data]);
+
+  const total = speciesCounts.reduce((sum, item) => sum + item.count, 0);
+
+  return (
+    <div className="w-full h-full">
+      <svg viewBox="0 0 280 96" className="w-full h-full">
+        {speciesCounts.map((item, index) => {
+          const percentage = (item.count / total) * 100;
+          const radius = 35;
+          const cx = 60;
+          const cy = 48;
+          const startAngle = index === 0 ? 0 : speciesCounts.slice(0, index).reduce((sum, prev) => sum + (prev.count / total) * 360, 0);
+          const endAngle = startAngle + (item.count / total) * 360;
+          
+          const x1 = cx + radius * Math.cos((startAngle * Math.PI) / 180);
+          const y1 = cy + radius * Math.sin((startAngle * Math.PI) / 180);
+          const x2 = cx + radius * Math.cos((endAngle * Math.PI) / 180);
+          const y2 = cy + radius * Math.sin((endAngle * Math.PI) / 180);
+          const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+          
+          const path = `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+          const colors = ['#22d3ee', '#00ff88', '#ffd700'];
+          
+          return (
+            <g key={item.name}>
+              <path
+                d={path}
+                fill={colors[index]}
+                fillOpacity={0.8}
+              />
+              <text
+                x={110}
+                y={15 + index * 22}
+                fill="#e5e7eb"
+                fontSize="10"
+                dominantBaseline="middle"
+              >
+                {item.name.length > 18 ? item.name.substring(0, 18) + '...' : item.name}: {item.count}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function WaterBodyDistributionChart({ data }: { data: DataPoint[] }) {
+  const waterBodyCounts = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    data.forEach(point => {
+      const waterBody = point.waterBody;
+      if (waterBody) counts[waterBody] = (counts[waterBody] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 4)
+      .map(([name, count]) => ({ name, count }));
+  }, [data]);
+
+  const maxCount = Math.max(...waterBodyCounts.map(item => item.count));
+
+  return (
+    <div className="w-full h-full">
+      <svg viewBox="0 0 280 96" className="w-full h-full">
+        {waterBodyCounts.map((item, index) => {
+          const height = (item.count / maxCount) * 70;
+          const x = index * 65 + 15;
+          const y = 85 - height;
+          const width = 50;
+          
+          return (
+            <g key={item.name}>
+              <rect
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                fill="#22d3ee"
+                fillOpacity={0.7}
+                rx={2}
+              />
+              <text
+                x={x + width/2}
+                y={y - 8}
+                fill="#e5e7eb"
+                fontSize="9"
+                textAnchor="middle"
+              >
+                {item.count}
+              </text>
+              <text
+                x={x + width/2}
+                y={92}
+                fill="#e5e7eb"
+                fontSize="8"
+                textAnchor="middle"
+                transform={`rotate(-45 ${x + width/2} 92)`}
+              >
+                {item.name.length > 10 ? item.name.substring(0, 10) + '...' : item.name}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function TemporalDistributionChart({ data }: { data: DataPoint[] }) {
+  const yearCounts = useMemo(() => {
+    const counts: { [year: number]: number } = {};
+    data.forEach(point => {
+      const year = new Date(point.eventDate).getFullYear();
+      if (!isNaN(year)) counts[year] = (counts[year] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([year, count]) => ({ year: parseInt(year), count }))
+      .sort((a, b) => a.year - b.year)
+      .slice(-6); // Last 6 years
+  }, [data]);
+
+  const maxCount = Math.max(...yearCounts.map(item => item.count));
+
+  return (
+    <div className="w-full h-full">
+      <svg viewBox="0 0 280 96" className="w-full h-full">
+        <polyline
+          points={yearCounts.map((item, index) => {
+            const x = 15 + (index * 45);
+            const y = 85 - (item.count / maxCount) * 70;
+            return `${x},${y}`;
+          }).join(' ')}
+          fill="none"
+          stroke="#22d3ee"
+          strokeWidth="3"
+        />
+        {yearCounts.map((item, index) => {
+          const x = 15 + (index * 45);
+          const y = 85 - (item.count / maxCount) * 70;
+          
+          return (
+            <g key={item.year}>
+              <circle
+                cx={x}
+                cy={y}
+                r="4"
+                fill="#22d3ee"
+              />
+              <text
+                x={x}
+                y={92}
+                fill="#e5e7eb"
+                fontSize="9"
+                textAnchor="middle"
+              >
+                {item.year}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function DepthDistributionChart({ data }: { data: DataPoint[] }) {
+  const depthBins = useMemo(() => {
+    const bins = [0, 100, 200, 500, 1000, 2000, 5000];
+    const counts = new Array(bins.length - 1).fill(0);
+    
+    data.forEach(point => {
+      const avgDepth = (point.minimumDepthInMeters + point.maximumDepthInMeters) / 2;
+      for (let i = 0; i < bins.length - 1; i++) {
+        if (avgDepth >= bins[i] && avgDepth < bins[i + 1]) {
+          counts[i]++;
+          break;
+        }
+      }
+    });
+    
+    return bins.slice(0, -1).map((bin, index) => ({
+      range: `${bin}-${bins[index + 1]}m`,
+      count: counts[index]
+    }));
+  }, [data]);
+
+  const maxCount = Math.max(...depthBins.map(item => item.count));
+
+  return (
+    <div className="w-full h-full">
+      <svg viewBox="0 0 280 96" className="w-full h-full">
+        {depthBins.map((item, index) => {
+          const height = (item.count / maxCount) * 60;
+          const x = index * 40 + 15;
+          const y = 85 - height;
+          const width = 30;
+          
+          return (
+            <g key={item.range}>
+              <rect
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                fill="#22d3ee"
+                fillOpacity={0.7}
+                rx="2"
+              />
+              <text
+                x={x + width/2}
+                y={y - 8}
+                fill="#e5e7eb"
+                fontSize="8"
+                textAnchor="middle"
+              >
+                {item.count}
+              </text>
+              <text
+                x={x + width/2}
+                y={92}
+                fill="#e5e7eb"
+                fontSize="7"
+                textAnchor="middle"
+                transform={`rotate(-45 ${x + width/2} 92)`}
+              >
+                {item.range}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 export default GlobeView;
 
 function Lineage({ name }: { name: string }) {
@@ -1881,34 +2189,4 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
   );
 }
 
-// Sidebar inline component: Specialized Modules
-const SpecializedModules: React.FC = () => {
-  const [active, setActive] = useState<'Taxonomy' | 'Otolith' | 'eDNA'>('Taxonomy');
-
-  return (
-    <div>
-      <h4 className="text-sm font-medium text-white mb-3">Specialized Modules</h4>
-      <div className="flex items-center gap-2 mb-3">
-        {['Taxonomy', 'Otolith', 'eDNA'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActive(tab as typeof active)}
-            className={`px-3 py-1 rounded border text-xs backdrop-blur-sm ${
-              active === tab
-                ? 'border-marine-cyan text-marine-cyan bg-white/10'
-                : 'border-white/20 text-white/80 hover:bg-white/10'
-            }`}
-          >
-            {tab === 'Taxonomy' ? 'Taxonomy Explorer' : tab === 'Otolith' ? 'Otolith Morphology' : 'eDNA Matcher'}
-          </button>
-        ))}
-      </div>
-      <div className="p-3 bg-white/10 border border-white/20 rounded-xl text-xs text-white/90 backdrop-blur-sm">
-        {active === 'Taxonomy' && 'Explore hierarchical relationships of taxa (placeholder).'}
-        {active === 'Otolith' && 'Otolith morphology module placeholder.'}
-        {active === 'eDNA' && 'eDNA matching module placeholder.'}
-      </div>
-    </div>
-  );
-};
 

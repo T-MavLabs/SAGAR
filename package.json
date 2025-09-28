@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.3.0",
     "@supabase/supabase-js": "^2.45.0",

@@ -7,9 +7,10 @@ import { supabase } from '../services/supabaseClient';
 
 interface DashboardProps {
   onProjectSelect: (project: Project) => void;
+  onNavigateToAPI: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -127,15 +128,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect }) => {
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
               {[
-                { name: 'Home', icon: FiHome, href: '#' },
-                { name: 'Data Sources', icon: FiDatabase, href: 'https://sagar-data-ingestion.vercel.app/' },
-                { name: 'API Documentation', icon: FiDollarSign, href: '#' }
+                { name: 'Home', icon: FiHome, href: '#', onClick: undefined },
+                { name: 'Data Sources', icon: FiDatabase, href: 'https://sagar-data-ingestion.vercel.app/', onClick: undefined },
+                { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: onNavigateToAPI }
               ].map((item, index) => (
-                <motion.a
+                <motion.button
                   key={item.name}
-                  href={item.href}
-                  target={item.name === 'Data Sources' ? '_blank' : undefined}
-                  rel={item.name === 'Data Sources' ? 'noopener noreferrer' : undefined}
+                  onClick={item.onClick}
                   className="flex items-center space-x-2 text-gray-300 hover:text-marine-cyan transition-colors duration-200"
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -143,7 +142,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect }) => {
                 >
                   <item.icon className="w-4 h-4" />
                   <span>{item.name}</span>
-                </motion.a>
+                </motion.button>
               ))}
             </nav>
 

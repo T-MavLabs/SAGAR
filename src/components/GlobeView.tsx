@@ -1320,6 +1320,8 @@ function MultiSelect({ values, onChange, options }: { values: string[]; onChange
 // Chart Components for Data Visualization
 function SpeciesDistributionChart({ data }: { data: DataPoint[] }) {
   const speciesCounts = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
     const counts: { [key: string]: number } = {};
     data.forEach(point => {
       const species = point.scientificName;
@@ -1332,7 +1334,15 @@ function SpeciesDistributionChart({ data }: { data: DataPoint[] }) {
   }, [data]);
 
   const total = speciesCounts.reduce((sum, item) => sum + item.count, 0);
-  const maxCount = Math.max(...speciesCounts.map(item => item.count));
+  const maxCount = speciesCounts.length > 0 ? Math.max(...speciesCounts.map(item => item.count)) : 1;
+
+  if (speciesCounts.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-white/60 text-sm">
+        No data available
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full">
@@ -1373,6 +1383,8 @@ function SpeciesDistributionChart({ data }: { data: DataPoint[] }) {
 
 function TopSpeciesChart({ data }: { data: DataPoint[] }) {
   const speciesCounts = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
     const counts: { [key: string]: number } = {};
     data.forEach(point => {
       const species = point.scientificName;
@@ -1385,6 +1397,14 @@ function TopSpeciesChart({ data }: { data: DataPoint[] }) {
   }, [data]);
 
   const total = speciesCounts.reduce((sum, item) => sum + item.count, 0);
+
+  if (speciesCounts.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-white/60 text-sm">
+        No data available
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full">
@@ -1432,6 +1452,8 @@ function TopSpeciesChart({ data }: { data: DataPoint[] }) {
 
 function WaterBodyDistributionChart({ data }: { data: DataPoint[] }) {
   const waterBodyCounts = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
     const counts: { [key: string]: number } = {};
     data.forEach(point => {
       const waterBody = point.waterBody;
@@ -1443,7 +1465,15 @@ function WaterBodyDistributionChart({ data }: { data: DataPoint[] }) {
       .map(([name, count]) => ({ name, count }));
   }, [data]);
 
-  const maxCount = Math.max(...waterBodyCounts.map(item => item.count));
+  const maxCount = waterBodyCounts.length > 0 ? Math.max(...waterBodyCounts.map(item => item.count)) : 1;
+
+  if (waterBodyCounts.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-white/60 text-sm">
+        No data available
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full">
@@ -1494,6 +1524,8 @@ function WaterBodyDistributionChart({ data }: { data: DataPoint[] }) {
 
 function TemporalDistributionChart({ data }: { data: DataPoint[] }) {
   const yearCounts = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
     const counts: { [year: number]: number } = {};
     data.forEach(point => {
       const year = new Date(point.eventDate).getFullYear();
@@ -1505,7 +1537,15 @@ function TemporalDistributionChart({ data }: { data: DataPoint[] }) {
       .slice(-6); // Last 6 years
   }, [data]);
 
-  const maxCount = Math.max(...yearCounts.map(item => item.count));
+  const maxCount = yearCounts.length > 0 ? Math.max(...yearCounts.map(item => item.count)) : 1;
+
+  if (yearCounts.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-white/60 text-sm">
+        No data available
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full">
@@ -1551,6 +1591,8 @@ function TemporalDistributionChart({ data }: { data: DataPoint[] }) {
 
 function DepthDistributionChart({ data }: { data: DataPoint[] }) {
   const depthBins = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
     const bins = [0, 100, 200, 500, 1000, 2000, 5000];
     const counts = new Array(bins.length - 1).fill(0);
     
@@ -1570,7 +1612,15 @@ function DepthDistributionChart({ data }: { data: DataPoint[] }) {
     }));
   }, [data]);
 
-  const maxCount = Math.max(...depthBins.map(item => item.count));
+  const maxCount = depthBins.length > 0 ? Math.max(...depthBins.map(item => item.count)) : 1;
+
+  if (depthBins.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-white/60 text-sm">
+        No data available
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full">

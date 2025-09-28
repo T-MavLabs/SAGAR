@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
 import LandingPage from './components/LandingPage';
 import GlobeView from './components/GlobeView';
 import LoaderOverlay from './components/LoaderOverlay';
 import SearchResultsView, { SearchResultSummary } from './components/SearchResultsView';
+import APIDocumentation from './components/APIDocumentation';
 import './App.css';
 
 export interface Project {
@@ -31,10 +33,53 @@ export interface DataPoint {
 }
 
 function App() {
-  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'search' | 'globe'>('landing');
+  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'search' | 'globe' | 'api-docs'>('landing');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showLoader, setShowLoader] = React.useState(false);
   const [searchResult, setSearchResult] = React.useState<SearchResultSummary | null>(null);
+
+  // Handle URL-based navigation
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path === '/api-docs' || path === '/api-documentation') {
+      setCurrentView('api-docs');
+    } else if (path === '/dashboard') {
+      setCurrentView('dashboard');
+    } else if (path === '/globe') {
+      setCurrentView('globe');
+    } else if (path === '/search') {
+      setCurrentView('search');
+    } else {
+      setCurrentView('landing');
+    }
+  }, []);
+
+  // Update URL when view changes
+  useEffect(() => {
+    const path = window.location.pathname;
+    let newPath = '/';
+    
+    switch (currentView) {
+      case 'api-docs':
+        newPath = '/api-docs';
+        break;
+      case 'dashboard':
+        newPath = '/dashboard';
+        break;
+      case 'globe':
+        newPath = '/globe';
+        break;
+      case 'search':
+        newPath = '/search';
+        break;
+      default:
+        newPath = '/';
+    }
+    
+    if (path !== newPath) {
+      window.history.pushState({}, '', newPath);
+    }
+  }, [currentView]);
 
   const handleProjectSelect = (project: Project) => {
     console.log('App: Project selected, navigating to globe view');
@@ -127,7 +172,7 @@ function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <Dashboard onProjectSelect={handleProjectSelect} />
+            <Dashboard onProjectSelect={handleProjectSelect} onNavigateToAPI={() => setCurrentView('api-docs')} />
           </motion.div>
         ) : currentView === 'search' ? (
           <motion.div
@@ -158,6 +203,16 @@ function App() {
               </div>
             )}
           </motion.div>
+        ) : currentView === 'api-docs' ? (
+          <motion.div
+            key="api-docs"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <APIDocumentation onBack={() => setCurrentView('dashboard')} />
+          </motion.div>
         ) : (
           <motion.div
             key="globe"
@@ -184,4 +239,13 @@ function App() {
   );
 }
 
-export default App;
+// Main App component with Router
+function AppWithRouter() {
+  return (
+    <Router>
+      <App />
+    </Router>
+  );
+}
+
+export default AppWithRouter;

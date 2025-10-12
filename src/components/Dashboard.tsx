@@ -8,10 +8,11 @@ import { supabase } from '../services/supabaseClient';
 interface DashboardProps {
   onProjectSelect: (project: Project) => void;
   onNavigateToAPI: () => void;
+  onNavigateToDataSources: () => void;
   onLogout?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI, onLogout }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI, onNavigateToDataSources, onLogout }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -134,7 +135,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
             <nav className="hidden md:flex items-center space-x-8">
               {[
                 { name: 'Home', icon: FiHome, href: '#', onClick: undefined, isExternal: false },
-                { name: 'Data Sources', icon: FiDatabase, href: 'https://sagar-data-ingestion.vercel.app/', onClick: undefined, isExternal: true },
+                { name: 'Data Sources', icon: FiDatabase, href: '#', onClick: onNavigateToDataSources, isExternal: false },
                 { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: onNavigateToAPI, isExternal: false }
               ].map((item, index) => (
                 item.isExternal ? (

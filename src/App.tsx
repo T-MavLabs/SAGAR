@@ -7,6 +7,7 @@ import GlobeView from './components/GlobeView';
 import LoaderOverlay from './components/LoaderOverlay';
 import SearchResultsView, { SearchResultSummary } from './components/SearchResultsView';
 import APIDocumentation from './components/APIDocumentation';
+import DataSourcePage from './components/DataSourcePage';
 import './App.css';
 
 export interface Project {
@@ -38,13 +39,14 @@ function App() {
     const path = window.location.pathname;
     if (path === '/api-docs' || path === '/api-documentation') return 'api-docs';
     if (path === '/dashboard') return 'dashboard';
+    if (path === '/data-sources') return 'data-sources';
     if (path.startsWith('/project/')) return 'globe';
     if (path === '/globe') return 'globe';
     if (path === '/search') return 'search';
     return 'landing';
   };
 
-  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'search' | 'globe' | 'api-docs'>(getInitialView());
+  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'search' | 'globe' | 'api-docs' | 'data-sources'>(getInitialView());
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showLoader, setShowLoader] = React.useState(false);
   const [searchResult, setSearchResult] = React.useState<SearchResultSummary | null>(null);
@@ -95,6 +97,8 @@ function App() {
         setCurrentView('api-docs');
       } else if (path === '/dashboard') {
         setCurrentView('dashboard');
+      } else if (path === '/data-sources') {
+        setCurrentView('data-sources');
       } else if (path.startsWith('/project/')) {
         // Extract project ID from URL
         const projectId = path.replace('/project/', '');
@@ -147,6 +151,9 @@ function App() {
         break;
       case 'dashboard':
         targetPath = '/dashboard';
+        break;
+      case 'data-sources':
+        targetPath = '/data-sources';
         break;
       case 'globe':
         if (selectedProject) {
@@ -281,6 +288,7 @@ function App() {
             <Dashboard 
               onProjectSelect={handleProjectSelect} 
               onNavigateToAPI={() => setCurrentView('api-docs')} 
+              onNavigateToDataSources={() => setCurrentView('data-sources')}
               onLogout={() => setCurrentView('landing')}
             />
           </motion.div>
@@ -322,6 +330,19 @@ function App() {
             transition={{ duration: 0.3 }}
           >
             <APIDocumentation 
+              onBack={() => setCurrentView('dashboard')} 
+              onLogout={() => setCurrentView('landing')}
+            />
+          </motion.div>
+        ) : currentView === 'data-sources' ? (
+          <motion.div
+            key="data-sources"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <DataSourcePage 
               onBack={() => setCurrentView('dashboard')} 
               onLogout={() => setCurrentView('landing')}
             />

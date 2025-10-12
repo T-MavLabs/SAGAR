@@ -15,6 +15,15 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
   const [hoveredProcess, setHoveredProcess] = useState<string | null>(null);
   const [selectedProcess, setSelectedProcess] = useState<string | null>(null);
 
+  const downloadFile = (filename: string, displayName: string) => {
+    const link = document.createElement('a');
+    link.href = `/${filename}`;
+    link.download = displayName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -154,7 +163,10 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
         'Parameters': 'East velocity, North velocity, Magnitude, Direction'
       },
       sampleData: 'Sample ADCP data shows current velocities at different depths with timestamps and GPS coordinates.',
-      usage: 'Used for ocean current modeling, marine navigation, and climate research.'
+      usage: 'Used for ocean current modeling, marine navigation, and climate research.',
+      files: [
+        { filename: 'ADCP-sample data.txt', displayName: 'ADCP Sample Data.txt', description: 'Sample ADCP current velocity data' }
+      ]
     },
     'aws': {
       title: 'AWS (Automatic Weather Station) Data',
@@ -168,7 +180,10 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
         'Transmission': 'Satellite and cellular communication'
       },
       sampleData: 'Sample AWS data includes GPS coordinates (9°58.257N, 76°14.625E), wind speed (5.04 m/s), and atmospheric pressure (1009.9 hPa).',
-      usage: 'Essential for weather forecasting, climate monitoring, and marine safety.'
+      usage: 'Essential for weather forecasting, climate monitoring, and marine safety.',
+      files: [
+        { filename: 'AWS sample data.txt', displayName: 'AWS Sample Data.txt', description: 'Sample AWS meteorological data' }
+      ]
     },
     'ctd': {
       title: 'CTD (Conductivity, Temperature, Depth) Data',
@@ -183,7 +198,11 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
         'Data Points': '1000 measurements per profile'
       },
       sampleData: 'CTD profile shows temperature decreasing from 26.5°C at surface to 8.9°C at depth, with salinity around 35.0 PSU.',
-      usage: 'Critical for oceanographic research, water mass analysis, and ecosystem studies.'
+      usage: 'Critical for oceanographic research, water mass analysis, and ecosystem studies.',
+      files: [
+        { filename: 'stn298002.asc', displayName: 'CTD Data - Station 298002.asc', description: 'CTD profile data from station 298002' },
+        { filename: 'stn298002.HDR', displayName: 'CTD Header - Station 298002.HDR', description: 'CTD data header information' }
+      ]
     },
     'documentation': {
       title: 'Dataset Documentation',
@@ -197,7 +216,10 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
         'Metadata': 'Complete dataset metadata and provenance'
       },
       sampleData: 'Documentation includes detailed protocols for data collection, calibration procedures, and quality assurance methods.',
-      usage: 'Essential for understanding data collection methods and ensuring research reproducibility.'
+      usage: 'Essential for understanding data collection methods and ensuring research reproducibility.',
+      files: [
+        { filename: 'sample data description.docx', displayName: 'Data Description Documentation.docx', description: 'Comprehensive data collection and processing documentation' }
+      ]
     }
   };
 
@@ -317,31 +339,43 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
                 <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6 flex-1 mb-6 flex flex-col">
                   <div className="flex items-center space-x-3 mb-6">
                     <FiDatabase className="w-5 h-5 text-marine-cyan" />
-                    <h2 className="text-xl font-semibold text-white">Available Datasets</h2>
+                    <h2 className="text-xl font-semibold text-white">Used Datasets</h2>
                   </div>
                   
                   <div className="space-y-4 flex-1">
                     {/* ADCP Data */}
-                    <motion.div 
-                      className="bg-gray-800/50 rounded-lg p-4 cursor-pointer hover:bg-gray-700/50 transition-colors duration-200"
-                      onClick={() => setSelectedDataset('adcp')}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-base font-medium text-white flex items-center">
-                          <FiFileText className="w-5 h-5 mr-2 text-marine-cyan" />
-                          ADCP Data
-                        </h3>
-                        <FiEye className="w-5 h-5 text-marine-cyan" />
-                      </div>
-                      <p className="text-gray-300 text-sm mb-2">
-                        High-resolution current velocity profiles using ADCP technology for ocean current analysis.
-                      </p>
-                      <div className="text-sm text-gray-400">
-                        <strong>Format:</strong> LTA files • <strong>Frequency:</strong> 76.8 kHz • <strong>Depth:</strong> 0-1000m
-                      </div>
-                    </motion.div>
+                        <motion.div 
+                          className="bg-gray-800/50 rounded-lg p-4 cursor-pointer hover:bg-gray-700/50 transition-colors duration-200"
+                          onClick={() => setSelectedDataset('adcp')}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-base font-medium text-white flex items-center">
+                              <FiFileText className="w-5 h-5 mr-2 text-marine-cyan" />
+                              ADCP Data
+                            </h3>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  downloadFile('ADCP-sample data.txt', 'ADCP Sample Data.txt');
+                                }}
+                                className="p-1 hover:bg-marine-cyan/20 rounded transition-colors duration-200"
+                                title="Download ADCP sample data"
+                              >
+                                <FiDownload className="w-4 h-4 text-marine-cyan" />
+                              </button>
+                              <FiEye className="w-5 h-5 text-marine-cyan" />
+                            </div>
+                          </div>
+                          <p className="text-gray-300 text-sm mb-2">
+                            High-resolution current velocity profiles using ADCP technology for ocean current analysis.
+                          </p>
+                          <div className="text-sm text-gray-400">
+                            <strong>Format:</strong> LTA files • <strong>Frequency:</strong> 76.8 kHz • <strong>Depth:</strong> 0-1000m
+                          </div>
+                        </motion.div>
 
                     {/* AWS Data */}
                     <motion.div 
@@ -355,7 +389,19 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
                           <FiFileText className="w-5 h-5 mr-2 text-marine-cyan" />
                           AWS Data
                         </h3>
-                        <FiEye className="w-5 h-5 text-marine-cyan" />
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              downloadFile('AWS sample data.txt', 'AWS Sample Data.txt');
+                            }}
+                            className="p-1 hover:bg-marine-cyan/20 rounded transition-colors duration-200"
+                            title="Download AWS sample data"
+                          >
+                            <FiDownload className="w-4 h-4 text-marine-cyan" />
+                          </button>
+                          <FiEye className="w-5 h-5 text-marine-cyan" />
+                        </div>
                       </div>
                       <p className="text-gray-300 text-sm mb-2">
                         Meteorological data including GPS coordinates, wind speed, atmospheric pressure, and temperature.
@@ -377,7 +423,19 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
                           <FiFileText className="w-5 h-5 mr-2 text-marine-cyan" />
                           CTD Data
                         </h3>
-                        <FiEye className="w-5 h-5 text-marine-cyan" />
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              downloadFile('stn298002.asc', 'CTD Data - Station 298002.asc');
+                            }}
+                            className="p-1 hover:bg-marine-cyan/20 rounded transition-colors duration-200"
+                            title="Download CTD data"
+                          >
+                            <FiDownload className="w-4 h-4 text-marine-cyan" />
+                          </button>
+                          <FiEye className="w-5 h-5 text-marine-cyan" />
+                        </div>
                       </div>
                       <p className="text-gray-300 text-sm mb-2">
                         Oceanographic profiles including conductivity, temperature, pressure, oxygen levels, and water clarity.
@@ -399,7 +457,19 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
                           <FiFileText className="w-5 h-5 mr-2 text-marine-cyan" />
                           Documentation
                         </h3>
-                        <FiEye className="w-5 h-5 text-marine-cyan" />
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              downloadFile('sample data description.docx', 'Data Description Documentation.docx');
+                            }}
+                            className="p-1 hover:bg-marine-cyan/20 rounded transition-colors duration-200"
+                            title="Download documentation"
+                          >
+                            <FiDownload className="w-4 h-4 text-marine-cyan" />
+                          </button>
+                          <FiEye className="w-5 h-5 text-marine-cyan" />
+                        </div>
                       </div>
                       <p className="text-gray-300 text-sm mb-2">
                         Comprehensive documentation for data collection methods, quality control procedures, and processing protocols.
@@ -1068,19 +1138,43 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-700">
-                  <button
-                    onClick={() => setSelectedDataset(null)}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors duration-200"
-                  >
-                    Close
-                  </button>
-                  <button className="px-4 py-2 bg-marine-cyan hover:bg-marine-cyan/80 text-marine-blue font-semibold rounded-lg transition-colors duration-200 flex items-center space-x-2">
-                    <FiDownload className="w-4 h-4" />
-                    <span>Download Sample</span>
-                  </button>
-                </div>
+                    {/* Available Files */}
+                    <div>
+                      <h3 className="text-lg font-medium text-white mb-3">Available Files</h3>
+                      <div className="space-y-3">
+                        {datasets[selectedDataset as keyof typeof datasets].files.map((file, index) => (
+                          <motion.div 
+                            key={index}
+                            className="flex items-center justify-between bg-gray-800/50 rounded-lg p-4"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                          >
+                            <div className="flex-1">
+                              <h4 className="text-sm font-medium text-white mb-1">{file.displayName}</h4>
+                              <p className="text-xs text-gray-400">{file.description}</p>
+                            </div>
+                            <button
+                              onClick={() => downloadFile(file.filename, file.displayName)}
+                              className="px-3 py-2 bg-marine-cyan hover:bg-marine-cyan/80 text-marine-blue font-semibold rounded-lg transition-colors duration-200 flex items-center space-x-2 text-sm"
+                            >
+                              <FiDownload className="w-4 h-4" />
+                              <span>Download</span>
+                            </button>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-700">
+                      <button
+                        onClick={() => setSelectedDataset(null)}
+                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors duration-200"
+                      >
+                        Close
+                      </button>
+                    </div>
               </div>
             </div>
           </motion.div>

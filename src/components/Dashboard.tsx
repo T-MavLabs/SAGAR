@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiPlus, FiLogOut, FiHome, FiInfo, FiDatabase, FiDollarSign } from 'react-icons/fi';
+import { FiPlus, FiLogOut, FiHome, FiInfo, FiDatabase, FiDollarSign, FiUsers } from 'react-icons/fi'; // Added FiUsers
 import ProjectCard from './ProjectCard';
 import { Project } from '../App';
 import { supabase } from '../services/supabaseClient';
@@ -9,10 +9,17 @@ interface DashboardProps {
   onProjectSelect: (project: Project) => void;
   onNavigateToAPI: () => void;
   onNavigateToDataSources: () => void;
+  onNavigateToDataContributor: () => void; // ADDED THIS MISSING PROP
   onLogout?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI, onNavigateToDataSources, onLogout }) => {
+const Dashboard: React.FC<DashboardProps> = ({ 
+  onProjectSelect, 
+  onNavigateToAPI, 
+  onNavigateToDataSources, 
+  onNavigateToDataContributor, // ADDED THIS MISSING PROP
+  onLogout 
+}) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -136,7 +143,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
               {[
                 { name: 'Home', icon: FiHome, href: '#', onClick: undefined, isExternal: false },
                 { name: 'Data Sources', icon: FiDatabase, href: '#', onClick: onNavigateToDataSources, isExternal: false },
-                { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: onNavigateToAPI, isExternal: false }
+                { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: onNavigateToAPI, isExternal: false },
+                { name: 'Data Contributor', icon: FiUsers, href: '#', onClick: onNavigateToDataContributor, isExternal: false } // ADDED THIS NAVIGATION ITEM
               ].map((item, index) => (
                 item.isExternal ? (
                   <motion.a

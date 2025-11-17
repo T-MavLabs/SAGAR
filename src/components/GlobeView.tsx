@@ -7,6 +7,7 @@ import ReactGlobeComponent from './ReactGlobeComponent';
 import { Card, CardTitle, CardDescription, CardSkeletonContainer } from './ui/aceternityCards';
 import { DataService } from '../services/dataService';
 import { SearchResultSummary } from './SearchResultsView';
+import { client } from "@gradio/client";
 
 interface GlobeViewProps {
   selectedProject: Project | null;
@@ -1678,8 +1679,6 @@ function DepthDistributionChart({ data }: { data: DataPoint[] }) {
   );
 }
 
-export default GlobeView;
-
 function Lineage({ name }: { name: string }) {
   const [lineage, setLineage] = useState<string[]>([]);
   useEffect(() => {
@@ -1741,6 +1740,383 @@ function StudyView() {
   );
 }
 
+
+// type Measurement = { file: string; lengthMm: number; widthMm: number };
+
+
+function OtolithModule({ globalSearch }: { globalSearch: string }) {
+  const [images, setImages] = useState<string[]>([]);
+  const [measurements, setMeasurements] = useState<{ file: string; lengthMm: number; widthMm: number }[]>([]);
+  const [aiGuess, setAiGuess] = useState<string>("");
+  const [scale, setScale] = useState<number>(1.0);
+  const [activeIdx, setActiveIdx] = useState<number>(-1);
+  const [annotate, setAnnotate] = useState<boolean>(false);
+  const [edgeView, setEdgeView] = useState<boolean>(false);
+  const [clicks, setClicks] = useState<{ x: number; y: number }[]>([]);
+  const [isClassifying, setIsClassifying] = useState<boolean>(false);
+
+  // Helper to format species names nicely
+  const formatSpeciesName = (name: string) => {
+    return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  };
+
+  // Fallback classification (This is now our main function)
+  const fallbackClassification = async (file: File) => {
+    // Helper to format species names
+    const formatSpeciesName = (name: string) => {
+      return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+    };
+
+    setAiGuess("🔄 Simulating API Call...");
+    await new Promise((r) => setTimeout(r, 1500)); // Simulate network delay
+
+    const mockPredictions = [
+      { label: "Atlantic_Halibut", confidence: 0.30 },
+      { label: "Yellowtail_Flounder", confidence: 0.26 },
+      { label: "K_Longecaudata", confidence: 0.25 },
+      { label: "Winter_Flounder", confidence: 0.10 },
+      { label: "Haddock", confidence: 0.09 },
+    ];
+
+    const topPrediction = mockPredictions[0];
+    const resultText = `🎯 **Simulated Results**\n\n**Top Prediction:** ${formatSpeciesName(
+      topPrediction.label
+    )} (${(topPrediction.confidence * 100).toFixed(1)}%)\n\n**All Predictions:**\n${mockPredictions
+      .slice(0, 3)
+      .map(
+        (p, i) =>
+          `${i + 1}. ${formatSpeciesName(p.label)}: ${(
+            p.confidence * 100
+          ).toFixed(1)}%`
+      )
+      .join("\n")}`;
+
+    setAiGuess(resultText);
+  };
+
+  // This function now just shows the loading state and calls the fallback
+  const classifyImage = async (file: File) => {
+    setIsClassifying(true);
+    setAiGuess("🔄 Simulating API Call..."); // Set initial state
+    try {
+      // We call the fallback directly
+      await fallbackClassification(file);
+    } catch (error) {
+      console.error("Simulation error:", error);
+      setAiGuess("❌ An unexpected error occurred during simulation.");
+    } finally {
+      setIsClassifying(false);
+    }
+  };
+
+  const onUpload = async (files: FileList | null) => {
+    if (!files) return;
+    const arr = Array.from(files);
+
+    for (const file of arr) {
+      const url = URL.createObjectURL(file);
+      setImages((prev) => [...prev, url]);
+
+      const fileSizeMB = file.size / (1024 * 1024);
+      const baseSize = 5 + fileSizeMB * 2;
+
+      setMeasurements((prev) => [
+        ...prev,
+        {
+          file: file.name,
+          lengthMm: parseFloat((baseSize + Math.random() * 3).toFixed(2)),
+          widthMm: parseFloat((baseSize * 0.3 + Math.random() * 1).toFixed(2)),
+        },
+      ]);
+
+      // Call the simulation API
+      await classifyImage(file);
+    }
+
+    if (activeIdx === -1 && arr.length) setActiveIdx(0);
+  };
+
+  // Retry classification for currently selected image
+  const retryClassification = async () => {
+    if (activeIdx < 0 || !images[activeIdx]) {
+      setAiGuess("❌ Please select an image first!");
+      return;
+    }
+
+    try {
+      const response = await fetch(images[activeIdx]);
+      const blob = await response.blob();
+      const file = new File([blob], `otolith_retry_${Date.now()}.jpg`, {
+        type: "image/jpeg",
+      });
+
+      // Call the simulation API
+      await classifyImage(file);
+    } catch (error) {
+      setAiGuess("❌ Error preparing image for retry.");
+    }
+  };
+
+  const exportCsv = () => {
+    const header = "file\n";
+    const rows = measurements
+      .map((m) => `${m.file}`)
+      .join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "otolith_measurements.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(e) => onUpload(e.target.files)}
+          className="text-white/80"
+        />
+
+        <button
+          onClick={retryClassification}
+          disabled={isClassifying || activeIdx < 0}
+          className="px-4 py-2 bg-green-500/20 border border-green-400/30 rounded-xl text-white text-sm hover:bg-green-500/30 disabled:opacity-50 flex items-center gap-2"
+        >
+          {isClassifying ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+              Calling API...
+            </>
+          ) : (
+            <>
+              <span>🔄</span>
+              Retry API Call
+            </>
+          )}
+        </button>
+
+        <button
+          onClick={() =>
+            window.open(
+              "https://chinmay0805-otolith-classification.hf.space",
+              "_blank"
+            )
+          }
+          className="px-4 py-2 bg-blue-500/20 border border-blue-400/30 rounded-xl text-white text-sm hover:bg-blue-500/30 flex items-center gap-2"
+        >
+          <span>🔗</span>
+          View Space
+        </button>
+
+        <label className="text-white/70 text-xs">Calibration (px/mm):</label>
+        <input
+          type="number"
+          step={0.1}
+          value={scale}
+          onChange={(e) => setScale(Number(e.target.value) || 1)}
+          className="w-24 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm"
+        />
+
+        <button
+          onClick={() => setAnnotate((a) => !a)}
+          className={`px-3 py-2 rounded-xl text-white text-sm border ${
+            annotate ? "bg-white/20 border-white/40" : "bg-white/10 border-white/20"
+          }`}
+        >
+          {annotate ? "📏 Annotate: ON" : "📏 Annotate: OFF"}
+        </button>
+
+        <button
+          onClick={() => setEdgeView((v) => !v)}
+          className={`px-3 py-2 rounded-xl text-white text-sm border ${
+            edgeView ? "bg-white/20 border-white/40" : "bg-white/10 border-white/20"
+          }`}
+        >
+          {edgeView ? "🔍 Edge View" : "🔍 Normal View"}
+        </button>
+
+        <button
+          onClick={exportCsv}
+          className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm"
+        >
+          📊 Export CSV
+        </button>
+      </div>
+
+      {aiGuess && (
+        <div
+          className={`mb-3 p-4 rounded-lg border ${
+            aiGuess.includes("Real AI") || aiGuess.includes("Live results")
+              ? "bg-green-500/20 border-green-400/30"
+              : aiGuess.includes("Simulated") || aiGuess.includes("simulation")
+              ? "bg-yellow-500/20 border-yellow-400/30"
+              : aiGuess.includes("Error") || aiGuess.includes("❌")
+              ? "bg-red-500/20 border-red-400/30"
+              : "bg-blue-500/20 border-blue-400/30"
+          }`}
+        >
+          <div className="text-white font-semibold text-sm whitespace-pre-line">
+            {aiGuess}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="border border-white/15 rounded-xl p-3 bg-white/5 max-h-[420px] overflow-auto">
+          <div className="text-white/90 font-semibold mb-2">
+            Uploaded Images
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {images.map((src, i) => (
+              <div key={i} className="relative">
+                <img
+                  src={src}
+                  alt="otolith"
+                  onClick={() => setActiveIdx(i)}
+                  className={`w-full h-24 object-cover rounded-lg border cursor-pointer transition-all ${
+                    activeIdx === i
+                      ? "border-green-400 shadow-lg shadow-green-500/20"
+                      : "border-white/10 hover:border-white/30"
+                  }`}
+                />
+                {activeIdx === i && (
+                  <div className="absolute top-1 right-1 w-3 h-3 bg-green-400 rounded-full" />
+                )}
+              </div>
+            ))}
+            {!images.length && (
+              <div className="text-white/60 text-sm col-span-3 text-center py-8">
+                📷 Upload otolith images to begin analysis
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="border border-white/15 rounded-xl p-3 bg-white/5 lg:col-span-2">
+          <div className="text-white/90 font-semibold mb-2">
+            Image Analysis {activeIdx >= 0 && `#${activeIdx + 1}`}
+          </div>
+          {activeIdx >= 0 ? (
+            <div className="relative w-full h-[320px] rounded-xl overflow-hidden border border-white/10 bg-black/20">
+              <img
+                src={images[activeIdx]}
+                className={`absolute inset-0 w-full h-full object-contain ${
+                  edgeView ? "filter contrast-150 brightness-110 saturate-0" : ""
+                }`}
+                alt="Selected otolith"
+              />
+              {annotate && (
+                <div
+                  className="absolute inset-0 cursor-crosshair"
+                  onClick={(e) => {
+                    const rect = (
+                      e.currentTarget as HTMLDivElement
+                    ).getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const pts = [...clicks, { x, y }];
+                    if (pts.length === 2) {
+                      const dx = pts[1].x - pts[0].x;
+                      const dy = pts[1].y - pts[0].y;
+                      const px = Math.sqrt(dx * dx + dy * dy);
+                      const mm = parseFloat((px / (scale || 1)).toFixed(2));
+                      setMeasurements((prev) => {
+                        const newMeasurements = [...prev];
+                        if (newMeasurements[activeIdx]) {
+                          newMeasurements[activeIdx] = {
+                            ...newMeasurements[activeIdx],
+                            lengthMm: mm,
+                          };
+                        }
+                        return newMeasurements;
+                      });
+                      setClicks([]);
+                    } else {
+                      setClicks(pts);
+                    }
+                  }}
+                >
+                  {clicks.map((p, idx) => (
+                    <div
+                      key={idx}
+                      className="absolute w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg"
+                      style={{ left: p.x - 6, top: p.y - 6 }}
+                    />
+                  ))}
+                  {clicks.length === 2 && (
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                      <line
+                        x1={clicks[0].x}
+                        y1={clicks[0].y}
+                        x2={clicks[1].x}
+                        y2={clicks[1].y}
+                        stroke="#ef4444"
+                        strokeWidth="2"
+                        strokeDasharray="4,4"
+                      />
+                    </svg>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-white/60 text-sm text-center py-16">
+              👆 Select an image from the left panel to view and analyze
+            </div>
+          )}
+        </div>
+
+        <div className="border border-white/15 rounded-xl p-3 bg-white/5">
+          <div className="text-white/90 font-semibold mb-2">Measurements</div>
+          {measurements.length > 0 ? (
+            <table className="w-full text-white/80 text-sm">
+              <thead>
+                <tr className="text-white/60 border-b border-white/10">
+                  <th className="text-left py-2">File</th>
+                  {/* <th className="text-left py-2">Length (mm)</th>
+                  <th className="text-left py-2">Width (mm)</th> */}
+                </tr>
+              </thead>
+              <tbody>
+                {measurements
+                  .filter(
+                    (m) =>
+                      !globalSearch ||
+                      m.file.toLowerCase().includes(globalSearch.toLowerCase())
+                  )
+                  .map((m, idx) => (
+                    <tr
+                      key={idx}
+                      className={`border-t border-white/5 ${
+                        idx === activeIdx ? "bg-white/10" : ""
+                      }`}
+                    >
+                      <td className="py-2 text-xs">
+                        {m.file.length > 20
+                          ? m.file.substring(0, 17) + "..."
+                          : m.file}
+                      </td>
+                      {/* <td className="py-2 font-mono">{m.lengthMm}</td>
+                      <td className="py-2 font-mono">{m.widthMm}</td> */}
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="text-white/60 text-sm text-center py-8">
+              No measurements yet. Upload images and use annotation tools.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 function TaxonomyModule({ globalSearch }: { globalSearch: string }) {
   const mockTree = {
     Animalia: {
@@ -1994,122 +2370,6 @@ function TaxonomyModule({ globalSearch }: { globalSearch: string }) {
     </div>
   );
 }
-
-function OtolithModule({ globalSearch }: { globalSearch: string }) {
-  const [images, setImages] = useState<string[]>([]);
-  const [measurements, setMeasurements] = useState<{ file: string; lengthMm: number; widthMm: number }[]>([]);
-  const [aiGuess, setAiGuess] = useState<string>('');
-  const [scale, setScale] = useState<number>(1.0);
-  const [activeIdx, setActiveIdx] = useState<number>(-1);
-  const [annotate, setAnnotate] = useState<boolean>(false);
-  const [edgeView, setEdgeView] = useState<boolean>(false);
-  const [clicks, setClicks] = useState<{ x: number; y: number }[]>([]);
-  const onUpload = (files: FileList | null) => {
-    if (!files) return;
-    const arr = Array.from(files);
-    arr.forEach(f => {
-      const url = URL.createObjectURL(f);
-      setImages(prev => [...prev, url]);
-      // mock morphometrics
-      setMeasurements(prev => [...prev, { file: f.name, lengthMm: 3 + Math.random()*7, widthMm: 1 + Math.random()*3 }]);
-    });
-    if (activeIdx === -1 && arr.length) setActiveIdx(0);
-  };
-
-  const exportCsv = () => {
-    const header = 'file,length_mm,width_mm\n';
-    const rows = measurements.map(m => `${m.file},${m.lengthMm.toFixed(2)},${m.widthMm.toFixed(2)}`).join('\n');
-    const blob = new Blob([header + rows], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'otolith_measurements.csv'; a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div>
-      <div className="flex items-center gap-3 mb-3">
-        <input type="file" accept="image/*" multiple onChange={(e)=>onUpload(e.target.files)} className="text-white/80" />
-        <button onClick={()=>setAiGuess('Mock AI: likely Thunnus albacares (juvenile), age ≈ 2 years')} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Run AI Guess</button>
-        <label className="text-white/70 text-xs">Calibration (px/mm):</label>
-        <input type="number" step={0.1} value={scale} onChange={(e)=>setScale(Number(e.target.value)||1)} className="w-24 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
-        <button onClick={()=>setAnnotate(a=>!a)} className={`px-3 py-2 rounded-xl text-white text-sm border ${annotate ? 'bg-white/20 border-white/40' : 'bg-white/10 border-white/20'}`}>{annotate ? 'Annotate: ON' : 'Annotate: OFF'}</button>
-        <button onClick={()=>setEdgeView(v=>!v)} className={`px-3 py-2 rounded-xl text-white text-sm border ${edgeView ? 'bg-white/20 border-white/40' : 'bg-white/10 border-white/20'}`}>{edgeView ? 'Edge view' : 'Normal view'}</button>
-        <button onClick={exportCsv} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Export CSV</button>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="border border-white/15 rounded-xl p-3 bg-white/5 max-h-[420px] overflow-auto grid grid-cols-3 gap-3 lg:col-span-1">
-          {images.map((src, i) => (
-            <img key={i} src={src} alt="otolith" onClick={()=>setActiveIdx(i)} className={`w-full h-24 object-cover rounded-lg border ${activeIdx===i ? 'border-white/40' : 'border-white/10'} cursor-pointer`} />
-          ))}
-          {!images.length && <div className="text-white/60 text-sm col-span-3">Upload otolith images to preview here.</div>}
-        </div>
-        <div className="border border-white/15 rounded-xl p-3 bg-white/5 lg:col-span-2">
-          <div className="text-white/90 font-semibold mb-2">Viewer</div>
-          {activeIdx >= 0 ? (
-            <div className="relative w-full h-[320px] rounded-xl overflow-hidden border border-white/10">
-              <img src={images[activeIdx]} className={`absolute inset-0 w-full h-full object-contain ${edgeView ? 'filter contrast-150 brightness-110 saturate-0' : ''}`} />
-              {annotate && (
-                <div
-                  className="absolute inset-0"
-                  onClick={(e)=>{
-                    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                    const x = e.clientX - rect.left; const y = e.clientY - rect.top;
-                    const pts = [...clicks, { x, y }];
-                    if (pts.length === 2) {
-                      const dx = pts[1].x - pts[0].x; const dy = pts[1].y - pts[0].y;
-                      const px = Math.sqrt(dx*dx + dy*dy);
-                      const mm = px / (scale || 1);
-                      setMeasurements(prev => {
-                        const file = `image_${activeIdx+1}`;
-                        return [...prev, { file, lengthMm: mm, widthMm: 0 }];
-                      });
-                      setClicks([]);
-                    } else {
-                      setClicks(pts);
-                    }
-                  }}
-                >
-                  {clicks.map((p, idx)=>(<div key={idx} className="absolute w-2 h-2 bg-marine-cyan rounded-full" style={{ left: p.x-4, top: p.y-4 }} />))}
-                  {clicks.length===2 && (
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                      <line x1={clicks[0].x} y1={clicks[0].y} x2={clicks[1].x} y2={clicks[1].y} stroke="#22d3ee" strokeWidth="2" />
-                    </svg>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-white/60 text-sm">Select a thumbnail to view and annotate.</div>
-          )}
-        </div>
-        <div className="border border-white/15 rounded-xl p-3 bg-white/5">
-          <div className="text-white/90 font-semibold mb-2">Measurements (mock)</div>
-          <table className="w-full text-white/80 text-sm">
-            <thead>
-              <tr className="text-white/60">
-                <th className="text-left py-1">File</th>
-                <th className="text-left py-1">Length (mm)</th>
-                <th className="text-left py-1">Width (mm)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {measurements.filter(m => !globalSearch || m.file.toLowerCase().includes(globalSearch.toLowerCase())).map((m, idx) => (
-                <tr key={idx} className="border-t border-white/10">
-                  <td className="py-1">{m.file}</td>
-                  <td className="py-1">{(m.lengthMm * 1).toFixed(2)}</td>
-                  <td className="py-1">{(m.widthMm * 1).toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {aiGuess && <div className="mt-3 text-white/90 text-sm">{aiGuess}</div>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function EDNAModule({ globalSearch }: { globalSearch: string }) {
   const [fasta, setFasta] = useState<string>('');
   const [results, setResults] = useState<{ header: string; match: string; score: number; length: number; gene: string }[]>([]);
@@ -2248,4 +2508,4 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
   );
 }
 
-
+export default GlobeView;

@@ -7,6 +7,7 @@ import ReactGlobeComponent from './ReactGlobeComponent';
 import { Card, CardTitle, CardDescription, CardSkeletonContainer } from './ui/aceternityCards';
 import { DataService } from '../services/dataService';
 import { SearchResultSummary } from './SearchResultsView';
+import ragService, { DataType } from '../services/ragService';
 
 interface GlobeViewProps {
   selectedProject: Project | null;
@@ -39,6 +40,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisSteps, setAnalysisSteps] = useState<string[]>([]);
   const [insight, setInsight] = useState<string | null>(null);
+  const [selectedDataTypes, setSelectedDataTypes] = useState<DataType[]>([]); // Empty = auto-detect
   const [activeMode, setActiveMode] = useState<'Analyse' | 'Visualise' | 'Study'>('Analyse');
   const [globeFocused, setGlobeFocused] = useState<boolean>(false);
   const [resetCamera, setResetCamera] = useState<(() => void) | null>(null);
@@ -180,34 +182,216 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   const handleAnalyze = async () => {
     if (!analysisInput.trim()) return;
     setIsAnalyzing(true);
+    setInsight(null);
     setAnalysisSteps([
-      'Analyzing patterns in filtered occurrences...',
-      'Correlating with oceanographic context (SST, salinity, chlorophyll)...',
-      'Summarizing insights...'
+      'Connecting to RAG system...',
+      'Searching relevant occurrences...',
+      'Generating scientific answer...'
     ]);
-    await new Promise(r => setTimeout(r, 1200));
-    await new Promise(r => setTimeout(r, 1200));
-    await new Promise(r => setTimeout(r, 800));
     
-    // Generate mock search result based on filtered data
-    const mockResult: SearchResultSummary = {
-      scientificName: analysisInput.trim() || 'Species Analysis',
-      description: `Analysis results for "${analysisInput.trim()}" based on ${filteredData.length} filtered occurrences. This species shows interesting distribution patterns across the marine environment.`,
-      locality: filteredData.length > 0 ? filteredData[0].locality : 'Unknown',
-      basisOfRecord: filteredData.length > 0 ? 'Preserved Specimen' : 'Unknown',
-      minDepthInMeters: filteredData.length > 0 ? Math.min(...filteredData.map(d => d.minimumDepthInMeters)) : null,
-      maxDepthInMeters: filteredData.length > 0 ? Math.max(...filteredData.map(d => d.maximumDepthInMeters)) : null,
-      coordinates: filteredData.length > 0 ? {
-        lat: filteredData[0].decimalLatitude,
-        lng: filteredData[0].decimalLongitude
+    try {
+      // Extract filters from activeFilters
+      let waterBodyFilter = activeFilters.find(f => f.type === 'waterBody');
+      const speciesFilter = activeFilters.find(f => f.type === 'species');
+      let depthFilter = activeFilters.find(f => f.type === 'depth');
+      
+      // Extract water body from natural language query if not set via filters
+      // Common water bodies: Arabian Sea, Indian Ocean, Bay of Bengal, Andaman Sea, Laccadive Sea, etc.
+      if (!waterBodyFilter) {
+        const waterBodyPatterns = [
+          /\b(arabian\s+sea)\b/i,
+          /\b(indian\s+ocean)\b/i,
+          /\b(bay\s+of\s+bengal)\b/i,
+          /\b(andaman\s+sea)\b/i,
+          /\b(laccadive\s+sea)\b/i,
+          /\b(red\s+sea)\b/i,
+          /\b(persian\s+gulf)\b/i,
+          /\b(mediterranean\s+sea)\b/i,
+          /\b(atlantic\s+ocean)\b/i,
+          /\b(pacific\s+ocean)\b/i,
+        ];
+        
+        for (const pattern of waterBodyPatterns) {
+          const match = analysisInput.match(pattern);
+          if (match) {
+            const waterBodyName = match[1].replace(/\s+/g, ' '); // Normalize whitespace
+            waterBodyFilter = { type: 'waterBody' as const, value: waterBodyName };
+            console.error('🔍 Extracted water body from query:', { waterBody: waterBodyName, query: analysisInput });
+            break;
+          }
+        }
+      }
+      
+      // Extract depth range from natural language query if not set via filters
+      // Pattern: "300-500 meter", "300 to 500 meters", "between 300 and 500 m", etc.
+      if (!depthFilter) {
+        const depthPatterns = [
+          /(\d+)\s*-\s*(\d+)\s*(?:meter|metre|m)\w*/i,  // "300-500 meters"
+          /(\d+)\s+to\s+(\d+)\s*[-]?\s*(?:meter|metre|m)\w*/i,  // "300 to 500 meters" or "350 to 600-meter"
+          /(\d+)\s+to\s+(\d+)\s*(?:meter|metre|m)\w*\s+depth\s+range/i,  // "350 to 600-meter depth range"
+          /between\s+(\d+)\s+and\s+(\d+)\s*(?:meter|metre|m)\w*/i,  // "between 300 and 500 meters"
+          /(\d+)\s*-\s*(\d+)\s*(?:meter|metre|m)\w*\s+depth/i,  // "300-500 meter depths"
+          /depth.*?(\d+)\s*-\s*(\d+)\s*(?:meter|metre|m)/i,  // "depth 300-500 meters"
+        ];
+        
+        for (const pattern of depthPatterns) {
+          const match = analysisInput.match(pattern);
+          if (match) {
+            const min = parseFloat(match[1]);
+            const max = parseFloat(match[2]);
+            if (!isNaN(min) && !isNaN(max) && min < max) {
+              depthFilter = { type: 'depth' as const, min, max };
+              console.error('🔍 Extracted depth range from query:', { min, max, query: analysisInput });
+              break;
+            }
+          }
+        }
+      }
+      
+      // Prepare RAG query options
+      const ragOptions: {
+        waterBody?: string;
+        scientificName?: string;
+        minDepth?: number;
+        maxDepth?: number;
+        topK?: number;
+        dataTypes?: DataType[];
+      } = {};
+      
+      if (waterBodyFilter && waterBodyFilter.type === 'waterBody') {
+        ragOptions.waterBody = waterBodyFilter.value;
+      }
+      if (speciesFilter && speciesFilter.type === 'species') {
+        ragOptions.scientificName = speciesFilter.value;
+      }
+      if (depthFilter && depthFilter.type === 'depth') {
+        ragOptions.minDepth = depthFilter.min;
+        ragOptions.maxDepth = depthFilter.max;
+      }
+      // Add data types if explicitly selected (empty array = auto-detect)
+      if (selectedDataTypes.length > 0) {
+        ragOptions.dataTypes = selectedDataTypes;
+      }
+      // Don't set topK - let API return ALL matching occurrences for research dashboard
+      // ragOptions.topK = 10; // REMOVED: Research dashboard needs all results, not limited
+      
+      // Call RAG API
+      setAnalysisSteps([
+        'Querying marine data database...',
+        'Analyzing relevant records...',
+        'Generating scientific insights...'
+      ]);
+      
+      const response = await ragService.query(analysisInput.trim(), ragOptions);
+      
+      // Update insight with the answer
+      setInsight(response.answer);
+      
+      // Process RAG results and create visualizations
+      if (response.relevant_occurrences && response.relevant_occurrences.length > 0) {
+        // Convert RAG occurrences to DataPoint format for processing
+        const ragDataPoints: DataPoint[] = response.relevant_occurrences
+          .filter(occ => occ.decimalLatitude && occ.decimalLongitude)
+          .map(occ => ({
+            scientificName: occ.scientificName || 'Unknown',
+            locality: occ.locality || 'Unknown',
+            eventDate: occ.eventDate || '',
+            decimalLatitude: occ.decimalLatitude || 0,
+            decimalLongitude: occ.decimalLongitude || 0,
+            waterBody: occ.waterBody || '',
+            samplingProtocol: occ.samplingProtocol || '',
+            minimumDepthInMeters: occ.minimumDepthInMeters || 0,
+            maximumDepthInMeters: occ.maximumDepthInMeters || 0,
+            identifiedBy: occ.identifiedBy || ''
+          }));
+        
+        // Get the most common species from results
+        const speciesCounts: { [key: string]: number } = {};
+        response.relevant_occurrences.forEach(occ => {
+          const name = occ.scientificName || 'Unknown';
+          speciesCounts[name] = (speciesCounts[name] || 0) + 1;
+        });
+        const mostCommonSpecies = Object.entries(speciesCounts)
+          .sort((a, b) => b[1] - a[1])[0]?.[0] || response.relevant_occurrences[0]?.scientificName || analysisInput.trim();
+        
+        // Generate charts from RAG data
+        const occurrencesByYear = generateOccurrencesByYear(ragDataPoints);
+        const depthHistogram = generateDepthHistogram(ragDataPoints);
+        
+        // Create comprehensive search result
+        // Debug: Log the API response - USE console.error to ensure visibility
+        console.error('🌐 GlobeView - RAG API Response:', {
+          hasOccurrences: response.relevant_occurrences?.length || 0,
+          hasDashboardSummary: !!response.dashboard_summary,
+          sourcesCount: response.sources_count,
+          dashboardSummaryKeys: response.dashboard_summary ? Object.keys(response.dashboard_summary) : null,
+          dashboardSummaryPreview: response.dashboard_summary ? {
+            hasExecutiveSummary: !!response.dashboard_summary.executive_summary,
+            hasKeyFindings: !!response.dashboard_summary.key_findings,
+            keyFindingsCount: response.dashboard_summary.key_findings?.length || 0
+          } : null
+        });
+        console.error('🌐 GlobeView - Full dashboard_summary:', response.dashboard_summary);
+
+        // Calculate depth range from results
+        const resultDepths = response.relevant_occurrences
+          .flatMap(occ => [occ.minimumDepthInMeters, occ.maximumDepthInMeters])
+          .filter(d => d !== undefined && d !== null) as number[];
+        
+        // Use query filter depth if provided, otherwise use actual min/max from results
+        const queryMinDepth = depthFilter && depthFilter.type === 'depth' ? depthFilter.min : undefined;
+        const queryMaxDepth = depthFilter && depthFilter.type === 'depth' ? depthFilter.max : undefined;
+        
+        const searchResult: SearchResultSummary = {
+          scientificName: mostCommonSpecies,
+          description: response.answer, // Full RAG answer
+          locality: response.relevant_occurrences[0]?.locality || 'Multiple locations',
+          basisOfRecord: 'Preserved Specimen',
+          // If query specified depth range, show that; otherwise show actual range from results
+          minDepthInMeters: queryMinDepth !== undefined ? queryMinDepth : (resultDepths.length > 0 ? Math.min(...resultDepths) : null),
+          maxDepthInMeters: queryMaxDepth !== undefined ? queryMaxDepth : (resultDepths.length > 0 ? Math.max(...resultDepths) : null),
+          coordinates: ragDataPoints.length > 0 ? {
+            lat: ragDataPoints[0].decimalLatitude,
+            lng: ragDataPoints[0].decimalLongitude
       } : null,
-      occurrencesByYear: generateOccurrencesByYear(filteredData),
-      depthHistogram: generateDepthHistogram(filteredData)
-    };
-    
-    setInsight('Insight: The species Puerulus sewelli is frequently found in the Andaman Sea at depths between 300-500m. This correlates with areas of lower oxygen concentration.');
+          occurrencesByYear: occurrencesByYear,
+          depthHistogram: depthHistogram,
+          // Add RAG-specific data
+          ragAnswer: response.answer,
+          ragOccurrences: response.relevant_occurrences,
+          ragSourcesCount: response.sources_count,
+          ragQueryTime: response.took_ms,
+          // Add Gemini-generated dashboard summary
+          dashboardSummary: response.dashboard_summary
+        };
+        
+        if (onShowSearchResults) {
+          onShowSearchResults(searchResult);
+        }
+      }
+      
+      setAnalysisSteps([
+        `Found ${response.sources_count} relevant occurrence(s)`,
+        `Query processed in ${response.took_ms}ms`,
+        'Analysis complete'
+      ]);
+      
+    } catch (error: any) {
+      console.error('RAG analysis error:', error);
+      setInsight(`Error: ${error.message || 'Failed to analyze query. Please ensure the RAG API is running and accessible.'}`);
+      setAnalysisSteps([
+        'Error connecting to RAG system',
+        'Please check if the API is running',
+        'Falling back to local analysis...'
+      ]);
+      
+      // Fallback to basic analysis
+      const fallbackInsight = `Based on ${filteredData.length} filtered occurrence(s), your query "${analysisInput.trim()}" relates to marine biodiversity data. For detailed answers, please ensure the RAG API is running at http://localhost:8000`;
+      setInsight(fallbackInsight);
+    } finally {
     setIsAnalyzing(false);
     setAnalysisInput('');
+    }
     
     // Create transition overlay by cloning the current globe canvas
     try {
@@ -231,11 +415,6 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
         (window as any).__sagarTransition = { overlay };
       }
     } catch {}
-
-    // Show search results
-    if (onShowSearchResults) {
-      onShowSearchResults(mockResult);
-    }
   };
 
   return (
@@ -431,10 +610,51 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
                 AI-Powered Analysis
               </h4>
               <div className="space-y-3">
+                {/* Data Type Selector (Optional) */}
+                <div>
+                  <label className="block text-xs text-white/70 mb-2">Data Types (Optional - Auto-detected if empty)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {(['OCCURRENCE', 'CTD', 'AWS', 'ADCP'] as DataType[]).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDataTypes(prev => 
+                            prev.includes(type) 
+                              ? prev.filter(t => t !== type)
+                              : [...prev, type]
+                          );
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                          selectedDataTypes.includes(type)
+                            ? 'bg-marine-cyan/40 border border-marine-cyan text-white'
+                            : 'bg-white/10 border border-white/20 text-white/70 hover:bg-white/15'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                    {selectedDataTypes.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDataTypes([])}
+                        className="px-2 py-1.5 rounded-lg text-xs bg-white/10 border border-white/20 text-white/70 hover:bg-white/15"
+                        title="Clear selection (auto-detect)"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  {selectedDataTypes.length > 0 && (
+                    <p className="mt-1 text-xs text-white/60">
+                      Searching: {selectedDataTypes.join(', ')}
+                    </p>
+                  )}
+                </div>
                 <textarea
                   value={analysisInput}
                   onChange={(e) => setAnalysisInput(e.target.value)}
-                  placeholder="Ask a question about the data..."
+                  placeholder="Ask a question about the data... (e.g., 'What species are found in the Arabian Sea?', 'Show CTD temperature profiles', 'What are the current speeds in the Indian Ocean?')"
                   className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm resize-none focus:border-marine-cyan focus:outline-none backdrop-blur-sm"
                   rows={3}
                 />
@@ -549,15 +769,54 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
 
         {/* Bottom-centered search bar styled like the example; separate layer so globe stays interactive */}
         {!isLoading && (
-          <div className={`pointer-events-none absolute inset-x-0 bottom-6 flex justify-center z-20 transition-all ${globeFocused ? 'filter blur-md' : ''}`}>
+          <div className={`pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center z-20 transition-all gap-3 ${globeFocused ? 'filter blur-md' : ''}`}>
+            {/* Data Type Selector */}
+            <div className="pointer-events-auto flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/20 rounded-xl px-3 py-2 shadow-lg">
+              <span className="text-xs text-white/70 mr-1">Data Types:</span>
+              {(['OCCURRENCE', 'CTD', 'AWS', 'ADCP'] as DataType[]).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    setSelectedDataTypes(prev => 
+                      prev.includes(type) 
+                        ? prev.filter(t => t !== type)
+                        : [...prev, type]
+                    );
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs transition-all ${
+                    selectedDataTypes.includes(type)
+                      ? 'bg-marine-cyan/50 border border-marine-cyan text-white font-medium'
+                      : 'bg-white/10 border border-white/20 text-white/70 hover:bg-white/15'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+              {selectedDataTypes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDataTypes([])}
+                  className="px-2 py-1 rounded-lg text-xs bg-white/10 border border-white/20 text-white/70 hover:bg-white/15"
+                  title="Clear selection (auto-detect)"
+                >
+                  Clear
+                </button>
+              )}
+              {selectedDataTypes.length === 0 && (
+                <span className="text-xs text-white/50 italic">(Auto-detect)</span>
+              )}
+            </div>
+
+            {/* Search Input Form */}
             <form
               onSubmit={(e) => { e.preventDefault(); handleAnalyze(); }}
               className="pointer-events-auto w-[min(760px,94%)] bg-black/30 backdrop-blur-md border border-white/15 rounded-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.08)] p-2 pl-4 flex items-center gap-3"
             >
               <input
                 type="text"
-                placeholder="Ask the Ocean..."
-                className="flex-1 bg-transparent outline-none text-white placeholder-white/80 tracking-wide disabled:opacity-50"
+                placeholder="Ask the Ocean... (e.g., 'What species in Arabian Sea?', 'Show CTD temperature profiles', 'Current speeds in Indian Ocean')"
+                className="flex-1 bg-transparent outline-none text-white placeholder-white/60 tracking-wide disabled:opacity-50 text-sm"
                 value={analysisInput}
                 onChange={(e) => setAnalysisInput(e.target.value)}
                 disabled={isAnalyzing}

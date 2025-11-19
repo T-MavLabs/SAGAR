@@ -233,7 +233,13 @@ function App() {
       const savedResult = localStorage.getItem('sagar:searchResult');
       const savedProject = localStorage.getItem('sagar:selectedProject');
       if (savedResult) {
-        setSearchResult(JSON.parse(savedResult));
+        const parsed = JSON.parse(savedResult);
+        console.error('📱 App.tsx - Loading searchResult from localStorage:', {
+          hasRagOccurrences: parsed.ragOccurrences?.length || 0,
+          hasDashboardSummary: !!parsed.dashboardSummary,
+          scientificName: parsed.scientificName
+        });
+        setSearchResult(parsed);
       }
       if (savedProject) {
         setSelectedProject(JSON.parse(savedProject));
@@ -293,6 +299,7 @@ function App() {
             />
           </motion.div>
         ) : currentView === 'search' ? (
+          // Analysis Dashboard - Shows RAG query results with charts and visualizations
           <motion.div
             key="search"
             initial={{ opacity: 0 }}
@@ -300,11 +307,14 @@ function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            {searchResult && (
+            {searchResult ? (
               <div className="pt-24 px-6 max-w-7xl mx-auto">
                 <SearchResultsView
                   result={searchResult}
-                  onViewOnGlobe={() => setCurrentView('globe')}
+                  onViewOnGlobe={() => {
+                    setCurrentView('globe');
+                    window.history.pushState({}, '', '/globe');
+                  }}
                   onBack={() => {
                     // Show loader during transition back to globe
                     setShowLoader(true);
@@ -314,10 +324,24 @@ function App() {
                       (window as any).__sagarTransition = undefined;
                     }
                     setCurrentView('globe');
+                    window.history.pushState({}, '', '/globe');
                     // Hide loader after brief delay
                     setTimeout(() => setShowLoader(false), 800);
                   }}
                 />
+              </div>
+            ) : (
+              <div className="pt-24 px-6 max-w-7xl mx-auto text-center text-white">
+                <p className="text-xl mb-4">No analysis results available</p>
+                <button
+                  onClick={() => {
+                    setCurrentView('globe');
+                    window.history.pushState({}, '', '/globe');
+                  }}
+                  className="px-4 py-2 bg-marine-cyan/30 border border-marine-cyan/50 rounded-xl text-white hover:bg-marine-cyan/40 transition-colors"
+                >
+                  Go to Globe View
+                </button>
               </div>
             )}
           </motion.div>
@@ -358,10 +382,21 @@ function App() {
             <GlobeView 
               selectedProject={selectedProject}
               onShowSearchResults={(result) => {
-                // Show loader during transition into SearchResultsView
+                // Debug: Log what we're receiving - USE console.error to ensure visibility
+                console.error('📱 App.tsx - onShowSearchResults called with:', {
+                  hasRagOccurrences: result.ragOccurrences?.length || 0,
+                  hasDashboardSummary: !!result.dashboardSummary,
+                  scientificName: result.scientificName,
+                  ragSourcesCount: result.ragSourcesCount
+                });
+                console.error('📱 App.tsx - Full result object:', result);
+                
+                // Show loader during transition into SearchResultsView (Analysis Dashboard)
                 setShowLoader(true);
                 setSearchResult(result);
                 setCurrentView('search');
+                // Update URL to /search (analysis dashboard route)
+                window.history.pushState({}, '', '/search');
                 // Hide after brief delay to cover render/texture loads
                 setTimeout(() => setShowLoader(false), 900);
               }}

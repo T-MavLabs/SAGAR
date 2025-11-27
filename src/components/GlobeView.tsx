@@ -420,46 +420,64 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   return (
     <div className="min-h-screen bg-marine-blue relative overflow-visible">
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all ${globeFocused ? 'filter blur-sm pointer-events-none' : ''}`}>
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <motion.button
-              onClick={() => window.dispatchEvent(new Event('backToProjects'))}
-              className="flex items-center space-x-2 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/30 rounded-xl backdrop-blur-sm transition-all duration-200"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <FiArrowLeft className="w-4 h-4" />
-              <span>Back to Projects</span>
-            </motion.button>
+  <div className="px-6 py-4">
+    <div className="flex items-center justify-between">
+      
+      {/* 1. Left Section (Wrapper) */}
+      <div className="flex-1 flex justify-start">
+        <motion.button
+          onClick={() => window.dispatchEvent(new Event('backToProjects'))}
+          className="flex items-center space-x-2 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/30 rounded-xl backdrop-blur-sm transition-all duration-200 text-white"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <FiArrowLeft className="w-4 h-4" />
+          <span>Back to Projects</span>
+        </motion.button>
+      </div>
 
-            <div className="text-center">
-              <h1 className="text-xl font-bold text-white">
-                {selectedProject?.title ?? 'Arabian Sea Plankton Study'}
-              </h1>
-            <div className="mt-2 flex justify-center">
-              <div className="inline-flex bg-white/15 border border-white/25 rounded-xl overflow-hidden backdrop-blur-sm">
-                {(['Analyse','Visualise','Study'] as const).map((mode, idx) => (
-                  <button
-                    key={mode}
-                    onClick={() => setActiveMode(mode)}
-                    className={`px-4 py-2 text-sm transition-colors ${
-                      activeMode === mode
-                        ? 'bg-white/30 text-white font-semibold'
-                        : 'text-white/80 hover:bg-white/20'
-                    } ${idx !== 0 ? 'border-l border-white/25' : ''}`}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="mt-2 h-5 flex items-center justify-center">
-             </div>
-            </div>
-            <div className="w-32" />
+      {/* 2. Center Content */}
+      <div className="text-center">
+        <h1 className="text-xl font-bold text-white">
+          {selectedProject?.title ?? 'Arabian Sea Plankton Study'}
+        </h1>
+        <div className="mt-2 flex justify-center">
+          <div className="inline-flex bg-white/15 border border-white/25 rounded-xl overflow-hidden backdrop-blur-sm">
+            {(['Analyse', 'Visualise', 'Study'] as const).map((mode, idx) => (
+              <button
+                key={mode}
+                onClick={() => setActiveMode(mode)}
+                className={`px-4 py-2 text-sm transition-colors ${
+                  activeMode === mode
+                    ? 'bg-white/30 text-white font-semibold'
+                    : 'text-white/80 hover:bg-white/20'
+                } ${idx !== 0 ? 'border-l border-white/25' : ''}`}
+              >
+                {mode}
+              </button>
+            ))}
           </div>
         </div>
-      </header>
+        <div className="mt-2 h-5 flex items-center justify-center">
+        </div>
+      </div>
+
+      {/* 3. Right Section (Wrapper) */}
+      <div className="flex-1 flex justify-end">
+        <motion.a
+          href="https://analytics.nikare.in"
+          target="_blank" 
+          className="flex items-center space-x-2 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/30 rounded-xl backdrop-blur-sm transition-all duration-200 text-white cursor-pointer"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <span>Supershit</span>
+        </motion.a>
+      </div>
+
+    </div>
+  </div>
+</header>
 
       {activeMode === 'Analyse' ? (
       <div className="relative pt-20 h-screen flex">

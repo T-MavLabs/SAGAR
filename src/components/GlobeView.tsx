@@ -471,7 +471,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          <span>Supershit</span>
+          <span>Data PlayGround</span>
         </motion.a>
       </div>
 

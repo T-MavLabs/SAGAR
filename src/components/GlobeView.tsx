@@ -8,6 +8,8 @@ import { Card, CardTitle, CardDescription, CardSkeletonContainer } from './ui/ac
 import { DataService } from '../services/dataService';
 import { SearchResultSummary } from './SearchResultsView';
 import ragService, { DataType } from '../services/ragService';
+import otolithService from '../services/otolithService';
+import ednaService from '../services/ednaService';
 
 interface GlobeViewProps {
   selectedProject: Project | null;
@@ -2272,10 +2274,55 @@ function TaxonomyModule({ globalSearch }: { globalSearch: string }) {
   );
 }
 
+// Helper function to format prediction response nicely
+const formatPredictionResponse = (response: any): string => {
+  if (!response || typeof response !== 'object') {
+    return JSON.stringify(response, null, 2);
+  }
+
+  // Handle the expected format: { scientificName, confidence, filename }
+  const parts: string[] = [];
+  
+  if (response.scientificName) {
+    // Format scientific name nicely (replace underscores with spaces)
+    // Scientific names are typically italicized, but we'll just format them cleanly
+    const name = response.scientificName.replace(/_/g, ' ');
+    parts.push(`Scientific Name: ${name}`);
+  }
+  
+  if (response.confidence !== undefined && response.confidence !== null) {
+    const confidence = typeof response.confidence === 'number' 
+      ? response.confidence.toFixed(2)
+      : response.confidence;
+    parts.push(`Confidence: ${confidence}%`);
+  }
+  
+  if (response.filename) {
+    parts.push(`Filename: ${response.filename}`);
+  }
+  
+  // If it's a different format, show all fields nicely
+  if (parts.length === 0) {
+    return Object.entries(response)
+      .map(([key, value]) => {
+        const formattedKey = key
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, (str) => str.toUpperCase())
+          .trim();
+        return `${formattedKey}: ${value}`;
+      })
+      .join('\n');
+  }
+  
+  return parts.join('\n');
+};
+
 function OtolithModule({ globalSearch }: { globalSearch: string }) {
   const [images, setImages] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]); // Store original files for API
   const [measurements, setMeasurements] = useState<{ file: string; lengthMm: number; widthMm: number }[]>([]);
   const [aiGuess, setAiGuess] = useState<string>('');
+  const [isLoadingAI, setIsLoadingAI] = useState<boolean>(false);
   const [scale, setScale] = useState<number>(1.0);
   const [activeIdx, setActiveIdx] = useState<number>(-1);
   const [annotate, setAnnotate] = useState<boolean>(false);
@@ -2284,12 +2331,17 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
   const onUpload = (files: FileList | null) => {
     if (!files) return;
     const arr = Array.from(files);
+    const newImages: string[] = [];
+    const newFiles: File[] = [];
     arr.forEach(f => {
       const url = URL.createObjectURL(f);
-      setImages(prev => [...prev, url]);
+      newImages.push(url);
+      newFiles.push(f);
       // mock morphometrics
       setMeasurements(prev => [...prev, { file: f.name, lengthMm: 3 + Math.random()*7, widthMm: 1 + Math.random()*3 }]);
     });
+    setImages(prev => [...prev, ...newImages]);
+    setImageFiles(prev => [...prev, ...newFiles]);
     if (activeIdx === -1 && arr.length) setActiveIdx(0);
   };
 
@@ -2303,11 +2355,76 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
     URL.revokeObjectURL(url);
   };
 
+  const handleRunAIGuess = async () => {
+    if (activeIdx < 0 || !imageFiles[activeIdx]) {
+      setAiGuess('Error: Please select an image first');
+      return;
+    }
+
+    setIsLoadingAI(true);
+    setAiGuess('');
+
+    try {
+      const activeFile = imageFiles[activeIdx];
+      
+      // First try sending file directly (common for HuggingFace Spaces)
+      let response;
+      try {
+        response = await otolithService.predict(activeFile, { useFileUpload: true });
+      } catch (fileError) {
+        // If file upload fails, try with base64 string
+        console.log('File upload failed, trying base64 format...');
+        const base64String = await otolithService.imageToBase64(activeFile);
+        response = await otolithService.predict(base64String);
+      }
+
+      // Check if response is a validation error
+      if ('detail' in response && Array.isArray(response.detail)) {
+        const errorMessages = response.detail.map((err: any) => {
+          const loc = Array.isArray(err.loc) ? err.loc.join('.') : 'unknown';
+          const msg = err.msg || err.type || 'Validation error';
+          return `${loc}: ${msg}`;
+        }).join('\n');
+        setAiGuess(`API Validation Error (422):\nThe API rejected the request format.\n\nDetails:\n${errorMessages}\n\nPlease check the API documentation for the correct input format.`);
+      } else {
+        // Handle successful prediction response - format it nicely
+        let formattedText = '';
+        
+        if (typeof response === 'string') {
+          // Try to parse if it's a JSON string
+          try {
+            const parsed = JSON.parse(response);
+            formattedText = formatPredictionResponse(parsed);
+          } catch {
+            formattedText = response;
+          }
+        } else if (typeof response === 'object' && response !== null) {
+          formattedText = formatPredictionResponse(response);
+        } else {
+          formattedText = JSON.stringify(response, null, 2);
+        }
+        
+        setAiGuess(formattedText);
+      }
+    } catch (error: any) {
+      console.error('Otolith API error:', error);
+      setAiGuess(`Error: ${error.message || 'Failed to get prediction from API. Please check the API endpoint format.'}`);
+    } finally {
+      setIsLoadingAI(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-3">
         <input type="file" accept="image/*" multiple onChange={(e)=>onUpload(e.target.files)} className="text-white/80" />
-        <button onClick={()=>setAiGuess('Mock AI: likely Thunnus albacares (juvenile), age ≈ 2 years')} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Run AI Guess</button>
+        <button 
+          onClick={handleRunAIGuess} 
+          disabled={isLoadingAI || activeIdx < 0 || !imageFiles[activeIdx]}
+          className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoadingAI ? 'Analyzing...' : 'Run AI Guess'}
+        </button>
         <label className="text-white/70 text-xs">Calibration (px/mm):</label>
         <input type="number" step={0.1} value={scale} onChange={(e)=>setScale(Number(e.target.value)||1)} className="w-24 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
         <button onClick={()=>setAnnotate(a=>!a)} className={`px-3 py-2 rounded-xl text-white text-sm border ${annotate ? 'bg-white/20 border-white/40' : 'bg-white/10 border-white/20'}`}>{annotate ? 'Annotate: ON' : 'Annotate: OFF'}</button>
@@ -2380,7 +2497,38 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
               ))}
             </tbody>
           </table>
-          {aiGuess && <div className="mt-3 text-white/90 text-sm">{aiGuess}</div>}
+          {aiGuess && (
+            <div className="mt-3 p-4 bg-gradient-to-br from-marine-cyan/10 to-blue-600/10 border border-marine-cyan/20 rounded-lg">
+              <div className="text-marine-cyan font-semibold text-sm mb-2">AI Prediction</div>
+              <div className="text-white/90 text-sm whitespace-pre-wrap space-y-1">
+                {aiGuess.split('\n').map((line, idx) => {
+                  // Highlight key-value pairs
+                  if (line.includes(':')) {
+                    const [key, ...valueParts] = line.split(':');
+                    const value = valueParts.join(':').trim();
+                    return (
+                      <div key={idx} className="flex">
+                        <span className="text-white/70 font-medium min-w-[120px]">{key}:</span>
+                        <span className="text-white/90">{value}</span>
+                      </div>
+                    );
+                  }
+                  // Handle error messages
+                  if (line.toLowerCase().includes('error')) {
+                    return (
+                      <div key={idx} className="text-red-400 font-medium">{line}</div>
+                    );
+                  }
+                  return (
+                    <div key={idx}>{line}</div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {isLoadingAI && !aiGuess && (
+            <div className="mt-3 text-white/60 text-sm">Loading prediction...</div>
+          )}
         </div>
       </div>
     </div>
@@ -2389,54 +2537,119 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
 
 function EDNAModule({ globalSearch }: { globalSearch: string }) {
   const [fasta, setFasta] = useState<string>('');
-  const [results, setResults] = useState<{ header: string; match: string; score: number; length: number; gene: string }[]>([]);
-  const [minIdentity, setMinIdentity] = useState<number>(85);
-  const [marker, setMarker] = useState<string>('COI');
+  const [results, setResults] = useState<{ 
+    identifier: string; 
+    header: string; 
+    sequence: string;
+    species_name: string; 
+    confidence_score: number; 
+    raw_score: number;
+  }[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-
-  const mockDb: { species: string; gene: string; barcode: string }[] = [
-    { species: 'Thunnus albacares', gene: 'COI', barcode: 'ATGCTACTGTTATTAATTCGAGCTGAATTAGGTCAACCTGGGTTT' },
-    { species: 'Caranx ignobilis', gene: 'COI', barcode: 'ATGCTGCTGTCATTGATTCGAGCAGAATTAGGTCAACCTGGCCTT' },
-    { species: 'Lutjanus campechanus', gene: 'COI', barcode: 'ATGCCACTGTTATTAATTCGAACAGAATTAGGCCAACCTGGATTT' },
-    { species: 'Epinephelus marginatus', gene: 'COI', barcode: 'ATGCTACTGTTATCAATTCGAACAGAATTAGGTCAACCAGGGTTT' },
-  ];
+  const [error, setError] = useState<string | null>(null);
 
   const parseFasta = (text: string) => {
-    const lines = text.split(/\r?\n/);
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
     const entries: { header: string; seq: string }[] = [];
+    
+    // Check if input has FASTA headers
+    const hasHeaders = lines.some(l => l.startsWith('>'));
+    
+    if (!hasHeaders) {
+      // No headers - treat entire input as a single sequence
+      const sequence = lines.join('').toUpperCase().replace(/[^ACGTN]/gi, '').trim();
+      if (sequence) {
+        entries.push({ 
+          header: 'sequence_1', 
+          seq: sequence 
+        });
+      }
+      return entries;
+    }
+    
+    // Parse FASTA format
     let header = '';
     let seq: string[] = [];
     for (const l of lines) {
-      if (!l) continue;
-      if (l.startsWith('>')) { if (header) entries.push({ header, seq: seq.join('').toUpperCase().replace(/[^ACGT]/g,'') }); header = l.slice(1).trim(); seq = []; }
-      else seq.push(l.trim());
+      if (!l.trim()) continue;
+      if (l.startsWith('>')) {
+        if (header) {
+          entries.push({ 
+            header: header || `sequence_${entries.length + 1}`, 
+            seq: seq.join('').toUpperCase().replace(/[^ACGTN]/gi, '') 
+          });
+        }
+        header = l.slice(1).trim() || `sequence_${entries.length + 2}`;
+        seq = [];
+      } else {
+        seq.push(l.trim());
+      }
     }
-    if (header) entries.push({ header, seq: seq.join('').toUpperCase().replace(/[^ACGT]/g,'') });
+    if (header || seq.length > 0) {
+      entries.push({ 
+        header: header || `sequence_${entries.length + 1}`, 
+        seq: seq.join('').toUpperCase().replace(/[^ACGTN]/gi, '') 
+      });
+    }
     return entries;
-  };
-
-  const identity = (a: string, b: string) => {
-    const n = Math.min(a.length, b.length);
-    if (!n) return 0;
-    let same = 0; for (let i=0;i<n;i++){ if (a[i]===b[i]) same++; }
-    return Math.round((same/n)*100);
   };
 
   const runMatch = async () => {
     setLoading(true);
+    setError(null);
+    setResults([]);
+
     try {
+      // Parse FASTA sequences
       const entries = parseFasta(fasta);
-      const out: { header: string; match: string; score: number; length: number; gene: string }[] = [];
-      for (const e of entries) {
-        let best = { species: 'Unknown', score: 0, gene: marker };
-        for (const row of mockDb.filter(r=> marker==='other' ? true : r.gene===marker)) {
-          const score = identity(e.seq, row.barcode);
-          if (score > best.score) best = { species: row.species, score, gene: row.gene };
-        }
-        if (best.score < minIdentity) best.species = 'Low confidence';
-        out.push({ header: e.header || 'read', match: best.species, score: best.score, length: e.seq.length, gene: best.gene });
+      
+      if (entries.length === 0) {
+        setError('No valid sequences found. Please paste FASTA format or upload a file.');
+        return;
       }
-      setResults(out);
+
+      // Process each sequence with the API
+      const apiResults: typeof results = [];
+      
+      for (const entry of entries) {
+        if (!entry.seq || entry.seq.length === 0) {
+          apiResults.push({
+            identifier: entry.header || 'unknown',
+            header: entry.header || 'sequence',
+            sequence: entry.seq,
+            species_name: 'Invalid sequence',
+            confidence_score: 0,
+            raw_score: 0,
+          });
+          continue;
+        }
+
+        try {
+          const matchResult = await ednaService.matchSequence(entry.seq);
+          apiResults.push({
+            identifier: matchResult.identifier,
+            header: entry.header || 'sequence',
+            sequence: entry.seq,
+            species_name: matchResult.species_name,
+            confidence_score: matchResult.confidence_score,
+            raw_score: matchResult.raw_score,
+          });
+        } catch (apiError: any) {
+          apiResults.push({
+            identifier: entry.header || 'unknown',
+            header: entry.header || 'sequence',
+            sequence: entry.seq,
+            species_name: `Error: ${apiError.message || 'API request failed'}`,
+            confidence_score: 0,
+            raw_score: 0,
+          });
+        }
+      }
+
+      setResults(apiResults);
+    } catch (err: any) {
+      setError(err.message || 'Failed to process sequences');
+      console.error('eDNA matching error:', err);
     } finally {
       setLoading(false);
     }
@@ -2452,72 +2665,129 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
   };
 
   const exportCsv = () => {
-    const header = 'read,match,identity,length,gene\n';
-    const rows = results.map(r => `${r.header},${r.match},${r.score},${r.length},${r.gene}`).join('\n');
+    const header = 'identifier,header,species_name,confidence_score,raw_score,sequence_length\n';
+    const rows = results.map(r => 
+      `${r.identifier || ''},${r.header || ''},${r.species_name || ''},${r.confidence_score || 0},${r.raw_score || 0},${r.sequence?.length || 0}`
+    ).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'edna_results.csv'; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement('a'); 
+    a.href = url; 
+    a.download = 'edna_results.csv'; 
+    a.click(); 
+    URL.revokeObjectURL(url);
   };
 
-  const dist = Object.entries(results.reduce<Record<string, number>>((acc, r) => { acc[r.match] = (acc[r.match]||0) + 1; return acc; }, {})).map(([k,v])=>({ x:k, y:v }));
+  // Calculate species distribution from API results
+  const dist = Object.entries(
+    results
+      .filter(r => r.species_name && !r.species_name.toLowerCase().includes('error'))
+      .reduce<Record<string, number>>((acc, r) => { 
+        acc[r.species_name] = (acc[r.species_name] || 0) + 1; 
+        return acc; 
+      }, {})
+  ).map(([k, v]) => ({ x: k, y: v }));
 
   return (
     <div>
       <div className="flex flex-wrap items-start gap-3 mb-3">
-        <textarea value={fasta} onChange={(e)=>setFasta(e.target.value)} placeholder=">read\nATGC..." className="flex-1 h-40 px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none" />
+        <textarea 
+          value={fasta} 
+          onChange={(e)=>setFasta(e.target.value)} 
+          placeholder=">read1\nATGC...\n>read2\nATGC..." 
+          className="flex-1 h-40 px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none" 
+        />
         <div className="flex flex-col gap-2 min-w-[220px]">
           <input type="file" accept=".fa,.fasta,.txt" onChange={(e)=>onUploadFile(e.target.files)} className="text-white/80" />
-          <button onClick={loadSample} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Load sample</button>
-          <button onClick={runMatch} disabled={loading || !fasta.trim()} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm disabled:opacity-60">{loading ? 'Matching…' : 'Match sequences'}</button>
-          <button onClick={exportCsv} disabled={!results.length} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm disabled:opacity-60">Export CSV</button>
-        </div>
-        <div className="flex flex-col gap-2 min-w-[180px]">
-          <label className="text-white/70 text-xs">Marker</label>
-          <select value={marker} onChange={(e)=>setMarker(e.target.value)} className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm">
-            <option>COI</option>
-            <option>12S</option>
-            <option>16S</option>
-            <option>rbcL</option>
-            <option>other</option>
-          </select>
-          <label className="text-white/70 text-xs">Min identity (%)</label>
-          <input type="number" min={50} max={100} value={minIdentity} onChange={(e)=>setMinIdentity(Math.max(50, Math.min(100, Number(e.target.value)||85)))} className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm" />
+          <button onClick={loadSample} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm hover:bg-white/20 transition-colors">Load sample</button>
+          <button 
+            onClick={runMatch} 
+            disabled={loading || !fasta.trim()} 
+            className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm disabled:opacity-60 hover:bg-white/20 transition-colors"
+          >
+            {loading ? 'Matching…' : 'Match sequences'}
+          </button>
+          <button 
+            onClick={exportCsv} 
+            disabled={!results.length} 
+            className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm disabled:opacity-60 hover:bg-white/20 transition-colors"
+          >
+            Export CSV
+          </button>
         </div>
       </div>
+      
+      {error && (
+        <div className="mb-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+          <div className="text-red-400 text-sm">{error}</div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="border border-white/15 rounded-xl p-3 bg-white/5 lg:col-span-2">
           <div className="text-white/90 font-semibold mb-2">Results</div>
-          {!results.length && <div className="text-white/60 text-sm">Paste FASTA or upload a file, then click Match sequences.</div>}
+          {!results.length && !loading && (
+            <div className="text-white/60 text-sm">Paste FASTA format sequences or upload a file, then click Match sequences.</div>
+          )}
+          {loading && !results.length && (
+            <div className="text-white/60 text-sm">Processing sequences with API...</div>
+          )}
           {results.length > 0 && (
-            <table className="w-full text-white/80 text-sm">
-              <thead>
-                <tr className="text-white/60">
-                  <th className="text-left py-1">Read</th>
-                  <th className="text-left py-1">Best match</th>
-                  <th className="text-left py-1">Identity (%)</th>
-                  <th className="text-left py-1">Length</th>
-                  <th className="text-left py-1">Marker</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.filter(r => !globalSearch || r.match.toLowerCase().includes(globalSearch.toLowerCase()) || r.header.toLowerCase().includes(globalSearch.toLowerCase())).map((r, i) => (
-                  <tr key={i} className="border-t border-white/10">
-                    <td className="py-1">{r.header}</td>
-                    <td className="py-1">{r.match}</td>
-                    <td className="py-1">{r.score}</td>
-                    <td className="py-1">{r.length}</td>
-                    <td className="py-1">{r.gene}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-white/80 text-sm">
+                <thead>
+                  <tr className="text-white/60">
+                    <th className="text-left py-2">Identifier</th>
+                    <th className="text-left py-2">Header</th>
+                    <th className="text-left py-2">Species Name</th>
+                    <th className="text-left py-2">Confidence (%)</th>
+                    <th className="text-left py-2">Raw Score</th>
+                    <th className="text-left py-2">Length</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {results
+                    .filter(r => 
+                      !globalSearch || 
+                      r.species_name.toLowerCase().includes(globalSearch.toLowerCase()) || 
+                      r.header.toLowerCase().includes(globalSearch.toLowerCase()) ||
+                      r.identifier.toLowerCase().includes(globalSearch.toLowerCase())
+                    )
+                    .map((r, i) => (
+                      <tr key={i} className="border-t border-white/10">
+                        <td className="py-2">{r.identifier || '-'}</td>
+                        <td className="py-2">{r.header || '-'}</td>
+                        <td className={`py-2 ${
+                          r.species_name.toLowerCase().includes('error') 
+                            ? 'text-red-400' 
+                            : 'text-white/90'
+                        }`}>
+                          {r.species_name || '-'}
+                        </td>
+                        <td className="py-2">
+                          {r.confidence_score !== undefined && r.confidence_score !== null
+                            ? `${r.confidence_score.toFixed(2)}%`
+                            : '-'}
+                        </td>
+                        <td className="py-2">{r.raw_score !== undefined ? r.raw_score.toFixed(2) : '-'}</td>
+                        <td className="py-2">{r.sequence?.length || '-'}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
         <div className="border border-white/15 rounded-xl p-3 bg-white/5">
-          <div className="text-white/90 font-semibold mb-2">Species distribution (mocked from matches)</div>
+          <div className="text-white/90 font-semibold mb-2">Species Distribution</div>
           <div className="h-56">
-            <SimplePie data={dist.length ? dist : [{ x:'No hits', y:1 }]} />
+            {dist.length > 0 ? (
+              <SimplePie data={dist} />
+            ) : (
+              <div className="text-white/60 text-sm flex items-center justify-center h-full">
+                {results.length > 0 ? 'No species matches found' : 'Run analysis to see distribution'}
+              </div>
+            )}
           </div>
         </div>
       </div>

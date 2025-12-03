@@ -29,6 +29,7 @@ SAGAR provides scientists with:
 - **AI-Powered Analysis**: Natural language query interface integrated with SagarManthan-RAG
 - **Data Type Selection**: Filter by OCCURRENCE, CTD, AWS, ADCP or auto-detect
 - **Search Bar**: Bottom-centered search bar with data type selector
+- **Query History**: Access all previous RAG queries with one-click result restoration
 
 ### AI-Powered Analysis (SagarManthan-RAG Integration)
 
@@ -46,6 +47,38 @@ The Globe View includes an integrated AI analysis system powered by **SagarManth
 - **Multi-Data Type Queries**: Query across Occurrence, CTD, AWS, and ADCP data
 - **Data Type Selector**: Explicitly select data types or let the system auto-detect
 - **Real-time Processing**: Shows analysis steps and progress
+- **Automatic Query Saving**: All queries are automatically saved to history for future reference
+
+### Query History
+
+SAGAR automatically saves all RAG queries and their results, allowing scientists to easily access and restore previous analyses.
+
+#### Features:
+- **Automatic Saving**: Every RAG query is automatically saved with:
+  - Original query text
+  - Applied filters (water body, species, depth range, data types)
+  - Full response data (answer, occurrences, dashboard summary)
+  - Timestamp and metadata
+- **Easy Access**: 
+  - Click the "Query History" button in the Globe View header (left of "Data PlayGround")
+  - Slides in a right-side panel with all historical queries
+- **Query Information**:
+  - Query text and applied filters
+  - Answer preview (first 150 characters)
+  - Source count and dashboard summary indicator
+  - Date and time of query
+- **Quick Actions**:
+  - **View Results**: One-click restoration of query results to the Analysis Dashboard
+  - **Delete**: Remove queries from history
+- **Persistent Storage**: All queries stored in Supabase `query_history` table
+- **Smart Restoration**: Restores complete query results including charts, visualizations, and dashboard summaries
+
+#### Usage:
+1. Make a query using the AI-Powered Analysis interface
+2. After the query completes, it's automatically saved
+3. Click "Query History" in the header to view all saved queries
+4. Click "View" on any query to restore and view its results
+5. Use the delete button to remove queries from history
 
 ### Analysis Dashboard (Search Results View)
 
@@ -212,6 +245,23 @@ Three scientist-oriented modules with consistent grey glass UI:
 5. **Open your browser**
    Navigate to `http://localhost:3000`
 
+### Database Setup (Supabase)
+
+1. **Create the projects table** (if not already created):
+   ```sql
+   -- Run sql_runs.sql in Supabase SQL Editor
+   ```
+
+2. **Create the query_history table**:
+   ```sql
+   -- Run sql_runs_query_history.sql in Supabase SQL Editor
+   ```
+   
+   This creates a table to store all RAG queries with:
+   - Query text and options
+   - Full response data (JSONB)
+   - Timestamps and metadata
+
 ### Backend Setup (SagarManthan-RAG)
 
 See `../SagarManthan-RAG/readme.md` for complete setup instructions.
@@ -251,6 +301,7 @@ SAGAR/
 │   │   ├── dataService.ts             # Data loading and management
 │   │   ├── ragService.ts              # SagarManthan-RAG API client
 │   │   ├── supabaseClient.ts          # Supabase client
+│   │   ├── queryHistoryService.ts     # Query history management
 │   │   ├── otolithService.ts          # Otolith Classifier API client
 │   │   └── ednaService.ts             # eDNA Sequence Matcher API client
 │   ├── App.tsx                        # Main application component
@@ -288,6 +339,12 @@ SAGAR/
    - Automatically redirected to `/search` (Analysis Dashboard)
    - View dynamic charts, statistics, and detailed summaries
    - Explore query-specific records grouped by data type
+   - Query is automatically saved to history
+
+6. **Access Query History**:
+   - Click "Query History" button in Globe View header
+   - Browse all previous queries
+   - Click "View" to restore any query's results
 
 ### Example Queries
 

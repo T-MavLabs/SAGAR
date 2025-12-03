@@ -119,15 +119,22 @@ Three scientist-oriented modules with consistent grey glass UI:
 - Calibration support (px/mm)
 - Measurements table with CSV export
 - Global filtering
-- Mock "AI Guess" (pluggable with real inference)
+- **AI-Powered Species Classification**: Integrated with Otolith Classifier API
+  - Upload otolith images and get species predictions
+  - Displays scientific name, confidence score, and filename
+  - Formatted, user-friendly prediction results
 
 #### 3) eDNA Data 🧬
 - Paste FASTA or upload `.fa/.fasta/.txt` files
-- Choose marker (COI, 12S, 16S, rbcL, other)
-- Set minimum identity threshold
-- Mock matcher computes identity vs. in-memory barcode set
-- Results table with CSV export
-- Species distribution pie chart from matches
+- **Real API Integration**: Connected to eDNA Sequence Matcher API
+- Supports multiple sequences in FASTA format or raw sequence input
+- Real-time species identification and matching
+- Results table showing:
+  - Identifier, Header, Species Name
+  - Confidence Score and Raw Score
+  - Sequence length
+- CSV export functionality
+- Species distribution pie chart from API results
 
 ## Technology Stack
 
@@ -149,11 +156,20 @@ Three scientist-oriented modules with consistent grey glass UI:
   - Database for projects
   - Storage for marine data files (Parquet format)
   - Authentication (if configured)
+- **Study Module APIs**:
+  - **Otolith Classifier API**: `https://chinmay0805-37-otolith-classifier.hf.space`
+    - HuggingFace Space for otolith image classification
+    - Endpoint: `/predict`
+  - **eDNA Sequence Matcher API**: `https://sagar-e-dna.vercel.app`
+    - Vercel-hosted API for eDNA sequence matching
+    - Endpoint: `/api/v1/edna/match`
 
 ### Data Sources
 - **Supabase Storage**: Parquet files containing Occurrence, CTD, AWS, ADCP data
 - **GBIF API**: Species and occurrence data for Taxonomy module
 - **Wikipedia API**: Image thumbnails fallback
+- **Otolith Classifier API**: Species identification from otolith images
+- **eDNA Sequence Matcher API**: Species identification from DNA sequences
 
 ## Installation
 
@@ -182,7 +198,11 @@ Three scientist-oriented modules with consistent grey glass UI:
    REACT_APP_RAG_API_URL=http://localhost:8000
    REACT_APP_SUPABASE_URL=your-supabase-url
    REACT_APP_SUPABASE_ANON_KEY=your-supabase-anon-key
+   REACT_APP_OTOLITH_API_URL=https://chinmay0805-37-otolith-classifier.hf.space
+   REACT_APP_EDNA_API_URL=https://sagar-e-dna.vercel.app
    ```
+   
+   **Note**: The Otolith and eDNA API URLs have defaults and don't need to be configured unless using custom endpoints.
 
 4. **Start the development server**
    ```bash
@@ -230,7 +250,9 @@ SAGAR/
 │   ├── services/
 │   │   ├── dataService.ts             # Data loading and management
 │   │   ├── ragService.ts              # SagarManthan-RAG API client
-│   │   └── supabaseClient.ts          # Supabase client
+│   │   ├── supabaseClient.ts          # Supabase client
+│   │   ├── otolithService.ts          # Otolith Classifier API client
+│   │   └── ednaService.ts             # eDNA Sequence Matcher API client
 │   ├── App.tsx                        # Main application component
 │   └── index.css                      # Global styles with Tailwind
 ├── public/
@@ -444,6 +466,60 @@ const API_URL = process.env.REACT_APP_RAG_API_URL || 'http://localhost:8000';
 
 Set `REACT_APP_RAG_API_URL` in `.env` file if the API is hosted elsewhere.
 
+## Integration with Study Module APIs
+
+SAGAR integrates with specialized APIs for the Study modules:
+
+### Otolith Classifier API
+
+The Otolith module uses a HuggingFace Space API for species classification:
+
+**Configuration:**
+- Default URL: `https://chinmay0805-37-otolith-classifier.hf.space`
+- Endpoint: `/predict`
+- Configurable via: `REACT_APP_OTOLITH_API_URL` environment variable
+
+**Features:**
+- Upload otolith images (JPG, PNG, etc.)
+- Automatic base64 encoding for API submission
+- Returns structured predictions with:
+  - Scientific name
+  - Confidence score
+  - Filename reference
+
+**Service:** `src/services/otolithService.ts`
+
+### eDNA Sequence Matcher API
+
+The eDNA module uses a Vercel-hosted API for DNA sequence matching:
+
+**Configuration:**
+- Default URL: `https://sagar-e-dna.vercel.app`
+- Endpoint: `/api/v1/edna/match`
+- Configurable via: `REACT_APP_EDNA_API_URL` environment variable
+
+**Features:**
+- Accepts FASTA format or raw DNA sequences
+- Multi-sequence batch processing
+- Returns species identification with:
+  - Identifier
+  - Species name
+  - Confidence score
+  - Raw score
+
+**Service:** `src/services/ednaService.ts`
+
+**Usage Example:**
+```typescript
+// Otolith API
+import otolithService from '../services/otolithService';
+const result = await otolithService.predict(imageFile, { useFileUpload: true });
+
+// eDNA API
+import ednaService from '../services/ednaService';
+const result = await ednaService.matchSequence('AGCTAGCTAGCT...');
+```
+
 ## Contributing
 
 1. Fork the repository
@@ -496,27 +572,60 @@ The Study section provides three scientist-oriented modules with a consistent gr
 - Viewer modes: Normal / Edge view (contrast + desaturate)
 - Annotate mode: click two points to add a length; calibration (px/mm) supported
 - Measurements table with CSV export and global filtering
-- Mock "AI Guess" (pluggable with real inference later)
+- **AI-Powered Species Classification**: Real API integration
+  - Connected to Otolith Classifier API (HuggingFace Space)
+  - Upload otolith images and get instant species predictions
+  - Displays formatted results: scientific name, confidence score, filename
+  - Handles image uploads and base64 encoding automatically
 
-**Future integration:**
-- Storage (Supabase/Cloudinary), serverless analysis (OpenCV/ML)
-- Auto edge tracing, ellipse fit, species/age estimation
+**API Integration:**
+- **Endpoint**: `https://chinmay0805-37-otolith-classifier.hf.space/predict`
+- **Input**: Otolith image (file upload or base64)
+- **Output**: Species identification with confidence scores
+
+**Future enhancements:**
+- Image storage (Supabase/Cloudinary)
+- Batch processing for multiple images
+- Auto edge tracing, ellipse fit, age estimation
 
 ### 3) eDNA Data 🧬
 
-- Paste FASTA or upload `.fa/.fasta/.txt`
-- Choose marker (COI, 12S, 16S, rbcL, other) and set minimum identity threshold
-- Mock matcher computes identity vs. a small in-memory barcode set per marker
-- Results table (read, match, identity %, length, marker) with CSV export
-- Species distribution pie chart from matches
+- Paste FASTA format sequences or upload `.fa/.fasta/.txt` files
+- **Real API Integration**: Connected to eDNA Sequence Matcher API
+- Supports multiple sequences in FASTA format or raw sequence input
+- Automatic sequence validation and cleaning
+- Real-time species identification from DNA sequences
 
-**Planned APIs:**
-- BOLD Systems API for barcodes; ENA/NCBI (E-utilities) for sequences/metadata
-- Optional serverless proxy for BLAST-like alignment and rate-limiting
+**Results Display:**
+- Identifier, Header/Read name
+- Species Name (scientifically validated)
+- Confidence Score (percentage)
+- Raw Score (numeric value)
+- Sequence Length
+
+**API Integration:**
+- **Endpoint**: `https://sagar-e-dna.vercel.app/api/v1/edna/match`
+- **Input**: DNA sequence string (ACGT format)
+- **Output**: Species match with confidence metrics
+- CSV export with all API response fields
+- Species distribution visualization from real API results
+
+**Features:**
+- Multi-sequence batch processing
+- Error handling for invalid sequences
+- Formatted, user-friendly results display
+- Automatic FASTA parsing
+
+**API Integration Status:**
+- **Taxonomy**: Uses GBIF and Wikipedia APIs (live)
+- **Otolith**: Integrated with Otolith Classifier API (HuggingFace Space)
+- **eDNA**: Integrated with eDNA Sequence Matcher API (Vercel)
 
 **Notes:**
 - Modules handle empty states and graceful fallbacks so the UI always renders
-- Live calls are made directly from the browser; move to a backend proxy for production (rate limits, CORS, API keys)
+- Live API calls are made directly from the browser
+- Error handling implemented for API failures
+- For production, consider moving to a backend proxy for rate limits, CORS, and API key management
 
 ---
 

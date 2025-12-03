@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, Suspense } from 'react';
 import ReactDOM from 'react-dom';
 import { motion } from 'framer-motion';
-import { FiArrowLeft, FiFilter, FiPlus, FiActivity, FiTrendingUp, FiSearch, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiFilter, FiPlus, FiActivity, FiTrendingUp, FiSearch, FiX, FiClock, FiDatabase } from 'react-icons/fi';
 import { Project, DataPoint } from '../App';
 import ReactGlobeComponent from './ReactGlobeComponent';
 import { Card, CardTitle, CardDescription, CardSkeletonContainer } from './ui/aceternityCards';
@@ -10,6 +10,7 @@ import { SearchResultSummary } from './SearchResultsView';
 import ragService, { DataType } from '../services/ragService';
 import otolithService from '../services/otolithService';
 import ednaService from '../services/ednaService';
+import queryHistoryService from '../services/queryHistoryService';
 
 interface GlobeViewProps {
   selectedProject: Project | null;
@@ -46,6 +47,93 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   const [activeMode, setActiveMode] = useState<'Analyse' | 'Visualise' | 'Study'>('Analyse');
   const [globeFocused, setGlobeFocused] = useState<boolean>(false);
   const [resetCamera, setResetCamera] = useState<(() => void) | null>(null);
+  const [showQueryHistory, setShowQueryHistory] = useState<boolean>(false);
+  const [queryHistoryItems, setQueryHistoryItems] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(null);
+
+  const loadQueryHistory = async () => {
+    setIsLoadingHistory(true);
+    setHistoryError(null);
+    try {
+      const data = await queryHistoryService.getAllQueries(50);
+      setQueryHistoryItems(data);
+    } catch (e: any) {
+      setHistoryError(e.message || 'Failed to load query history');
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleRestoreQuery = async (id: string) => {
+    try {
+      const record = await queryHistoryService.getQueryById(id);
+      if (!record) {
+        setHistoryError('Query not found');
+        return;
+      }
+
+      const searchResult = queryHistoryService.convertToSearchResultSummary(record);
+      if (!searchResult) {
+        setHistoryError('Unable to restore query results');
+        return;
+      }
+
+      setShowQueryHistory(false);
+      if (onShowSearchResults) {
+        onShowSearchResults(searchResult);
+      }
+    } catch (e: any) {
+      setHistoryError(e.message || 'Failed to restore query');
+    }
+  };
+
+  const handleDeleteHistoryQuery = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this query from history?')) {
+      return;
+    }
+
+    setDeletingHistoryId(id);
+    try {
+      const success = await queryHistoryService.deleteQuery(id);
+      if (success) {
+        setQueryHistoryItems(prev => prev.filter(q => q.id !== id));
+      } else {
+        setHistoryError('Failed to delete query');
+      }
+    } catch (e: any) {
+      setHistoryError(e.message || 'Failed to delete query');
+    } finally {
+      setDeletingHistoryId(null);
+    }
+  };
+
+  const formatHistoryDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getFilterSummary = (options: any) => {
+    if (!options) return null;
+    const filters: string[] = [];
+    if (options.waterBody) filters.push(`Water: ${options.waterBody}`);
+    if (options.scientificName) filters.push(`Species: ${options.scientificName}`);
+    if (options.minDepth !== undefined || options.maxDepth !== undefined) {
+      const min = options.minDepth ?? 0;
+      const max = options.maxDepth ?? '∞';
+      filters.push(`Depth: ${min}-${max}m`);
+    }
+    if (options.dataTypes && options.dataTypes.length > 0) {
+      filters.push(`Types: ${options.dataTypes.join(', ')}`);
+    }
+    return filters.length > 0 ? filters.join(' • ') : null;
+  };
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -286,6 +374,18 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
       
       const response = await ragService.query(analysisInput.trim(), ragOptions);
       
+      // Save query to history
+      try {
+        await queryHistoryService.saveQuery(
+          analysisInput.trim(),
+          ragOptions,
+          response
+        );
+      } catch (error) {
+        console.error('Failed to save query to history:', error);
+        // Don't block the UI if history save fails
+      }
+      
       // Update insight with the answer
       setInsight(response.answer);
       
@@ -465,7 +565,21 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
       </div>
 
       {/* 3. Right Section (Wrapper) */}
-      <div className="flex-1 flex justify-end">
+      <div className="flex-1 flex justify-end items-center space-x-3">
+        <motion.button
+          onClick={() => {
+            setShowQueryHistory(!showQueryHistory);
+            if (!showQueryHistory) {
+              loadQueryHistory();
+            }
+          }}
+          className="flex items-center space-x-2 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/30 rounded-xl backdrop-blur-sm transition-all duration-200 text-white"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <FiClock className="w-4 h-4" />
+          <span>Query History</span>
+        </motion.button>
         <motion.a
           href="https://analytics.nikare.in"
           target="_blank" 
@@ -994,6 +1108,130 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
         <VisualiseView allData={dataPoints} />
       ) : (
         <StudyView />
+      )}
+
+      {/* Query History Panel */}
+      {showQueryHistory && (
+        <motion.div
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="fixed top-0 right-0 h-full w-full max-w-2xl bg-gray-900/95 backdrop-blur-md border-l border-gray-700/50 z-[100] shadow-2xl overflow-y-auto"
+        >
+          <div className="sticky top-0 bg-gray-900/95 backdrop-blur-md border-b border-gray-700/50 px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <FiClock className="w-6 h-6 text-marine-cyan" />
+              <h2 className="text-2xl font-bold text-white">Query History</h2>
+            </div>
+            <button
+              onClick={() => setShowQueryHistory(false)}
+              className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-6">
+            {historyError && (
+              <div className="mb-4 p-4 bg-red-900/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
+                {historyError}
+              </div>
+            )}
+
+            {isLoadingHistory ? (
+              <div className="py-16 text-center text-gray-400">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-marine-cyan mb-4"></div>
+                <p>Loading query history...</p>
+              </div>
+            ) : queryHistoryItems.length === 0 ? (
+              <div className="py-16 text-center">
+                <FiClock className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400 text-lg mb-2">No query history yet</p>
+                <p className="text-gray-500 text-sm">
+                  Your RAG queries will be saved here automatically
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {queryHistoryItems.map((query, index) => {
+                  const filterSummary = getFilterSummary(query.query_options);
+                  return (
+                    <motion.div
+                      key={query.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-5 hover:border-marine-cyan/50 transition-all duration-200"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          {/* Query Text */}
+                          <div className="flex items-start space-x-3 mb-3">
+                            <FiSearch className="w-5 h-5 text-marine-cyan mt-1 flex-shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-white font-medium text-base mb-2 break-words">
+                                {query.query}
+                              </p>
+                              {filterSummary && (
+                                <p className="text-xs text-gray-400 mb-2">
+                                  {filterSummary}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Answer Preview */}
+                          <div className="ml-8 mb-3">
+                            <p className="text-sm text-gray-300 line-clamp-2">
+                              {query.answer_preview}
+                            </p>
+                          </div>
+
+                          {/* Metadata */}
+                          <div className="ml-8 flex items-center space-x-4 text-xs text-gray-500">
+                            <span className="flex items-center space-x-1">
+                              <FiClock className="w-3 h-3" />
+                              <span>{formatHistoryDate(query.created_at)}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <FiDatabase className="w-3 h-3" />
+                              <span>{query.sources_count} sources</span>
+                            </span>
+                            {query.has_dashboard_summary && (
+                              <span className="px-2 py-0.5 bg-marine-cyan/20 text-marine-cyan rounded text-xs">
+                                Dashboard Summary
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center space-x-2 flex-shrink-0">
+                          <button
+                            onClick={() => handleRestoreQuery(query.id)}
+                            className="px-4 py-2 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200 flex items-center space-x-2 text-sm"
+                          >
+                            <FiSearch className="w-4 h-4" />
+                            <span>View</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteHistoryQuery(query.id)}
+                            disabled={deletingHistoryId === query.id}
+                            className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                            title="Delete query"
+                          >
+                            <FiX className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </motion.div>
       )}
     </div>
   );
@@ -2643,7 +2881,7 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
             confidence_score: 0,
             raw_score: 0,
           });
-        }
+      }
       }
 
       setResults(apiResults);
@@ -2715,12 +2953,12 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
             Export CSV
           </button>
         </div>
-      </div>
+        </div>
       
       {error && (
         <div className="mb-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
           <div className="text-red-400 text-sm">{error}</div>
-        </div>
+      </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -2734,18 +2972,18 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
           )}
           {results.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full text-white/80 text-sm">
-                <thead>
-                  <tr className="text-white/60">
+            <table className="w-full text-white/80 text-sm">
+              <thead>
+                <tr className="text-white/60">
                     <th className="text-left py-2">Identifier</th>
                     <th className="text-left py-2">Header</th>
                     <th className="text-left py-2">Species Name</th>
                     <th className="text-left py-2">Confidence (%)</th>
                     <th className="text-left py-2">Raw Score</th>
                     <th className="text-left py-2">Length</th>
-                  </tr>
-                </thead>
-                <tbody>
+                </tr>
+              </thead>
+              <tbody>
                   {results
                     .filter(r => 
                       !globalSearch || 
@@ -2754,7 +2992,7 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
                       r.identifier.toLowerCase().includes(globalSearch.toLowerCase())
                     )
                     .map((r, i) => (
-                      <tr key={i} className="border-t border-white/10">
+                  <tr key={i} className="border-t border-white/10">
                         <td className="py-2">{r.identifier || '-'}</td>
                         <td className="py-2">{r.header || '-'}</td>
                         <td className={`py-2 ${
@@ -2771,10 +3009,10 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
                         </td>
                         <td className="py-2">{r.raw_score !== undefined ? r.raw_score.toFixed(2) : '-'}</td>
                         <td className="py-2">{r.sequence?.length || '-'}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             </div>
           )}
         </div>

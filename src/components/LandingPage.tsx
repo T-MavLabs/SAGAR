@@ -1,17 +1,19 @@
 import React, { useEffect, useRef } from 'react';
 import WorldMap from './ui/world-map';
 
-const LandingPage: React.FC<{ onEnter: () => void }>= ({ onEnter }) => {
+const LandingPage: React.FC<{ onEnter: () => void; onVesselLogin: () => void }> = ({ onEnter, onVesselLogin }) => {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const subtitleRef = useRef<HTMLParagraphElement>(null);
   const ctaRef = useRef<HTMLButtonElement>(null);
+  const vesselLoginRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const title = titleRef.current;
     const subtitle = subtitleRef.current;
     const cta = ctaRef.current;
+    const vesselLogin = vesselLoginRef.current;
 
-    if (!title || !subtitle || !cta) return;
+    if (!title || !subtitle || !cta || !vesselLogin) return;
 
     title.animate([
       { transform: 'translateY(20px)', opacity: 0 },
@@ -27,6 +29,11 @@ const LandingPage: React.FC<{ onEnter: () => void }>= ({ onEnter }) => {
       { transform: 'scale(0.9)', opacity: 0 },
       { transform: 'scale(1)', opacity: 1 }
     ], { duration: 500, delay: 550, easing: 'ease-out', fill: 'forwards' });
+
+    vesselLogin.animate([
+      { transform: 'scale(0.9)', opacity: 0 },
+      { transform: 'scale(1)', opacity: 1 }
+    ], { duration: 500, delay: 700, easing: 'ease-out', fill: 'forwards' });
   }, []);
 
   return (
@@ -43,7 +50,7 @@ const LandingPage: React.FC<{ onEnter: () => void }>= ({ onEnter }) => {
         <p ref={subtitleRef} className="mt-4 text-lg text-gray-300" style={{ transform: 'translateY(20px)', opacity: 0 }}>
           Spatio-temporal Analytics Gateway for Aquatic Resources
         </p>
-        <div className="mt-10 flex justify-center gap-4">
+        <div className="mt-10 flex flex-col items-center gap-4">
           <button
             ref={ctaRef}
             onClick={onEnter}
@@ -51,6 +58,14 @@ const LandingPage: React.FC<{ onEnter: () => void }>= ({ onEnter }) => {
             style={{ transform: 'scale(0.9)', opacity: 0 }}
           >
             Enter Dashboard
+          </button>
+          <button
+            ref={vesselLoginRef}
+            onClick={onVesselLogin}
+            className="px-6 py-3 bg-marine-teal text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-teal/25 transition-all"
+            style={{ transform: 'scale(0.9)', opacity: 0 }}
+          >
+            Vessel Login
           </button>
         </div>
       </div>

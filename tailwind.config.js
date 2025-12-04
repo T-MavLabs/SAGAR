@@ -11,6 +11,8 @@ module.exports = {
         'marine-green': '#00ff88',
         'marine-yellow': '#ffd700',
         'marine-orange': '#ff6b35',
+        'marine-teal': '#20b2aa',
+        'marine-dark': '#0d1b2a',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',

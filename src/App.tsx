@@ -8,6 +8,7 @@ import LoaderOverlay from './components/LoaderOverlay';
 import SearchResultsView, { SearchResultSummary } from './components/SearchResultsView';
 import APIDocumentation from './components/APIDocumentation';
 import DataSourcePage from './components/DataSourcePage';
+import VesselLogin from './components/VesselLogin';
 import './App.css';
 
 export interface Project {
@@ -46,7 +47,7 @@ function App() {
     return 'landing';
   };
 
-  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'search' | 'globe' | 'api-docs' | 'data-sources'>(getInitialView());
+  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'search' | 'globe' | 'api-docs' | 'data-sources' | 'vessel-login'>(getInitialView());
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showLoader, setShowLoader] = React.useState(false);
   const [searchResult, setSearchResult] = React.useState<SearchResultSummary | null>(null);
@@ -281,7 +282,10 @@ function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <LandingPage onEnter={() => setCurrentView('dashboard')} />
+            <LandingPage 
+              onEnter={() => setCurrentView('dashboard')} 
+              onVesselLogin={() => setCurrentView('vessel-login')}
+            />
           </motion.div>
         ) : currentView === 'dashboard' ? (
           <motion.div
@@ -371,6 +375,16 @@ function App() {
               onBack={() => setCurrentView('dashboard')} 
               onLogout={() => setCurrentView('landing')}
             />
+          </motion.div>
+        ) : currentView === 'vessel-login' ? (
+          <motion.div
+            key="vessel-login"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <VesselLogin onBack={() => setCurrentView('landing')} />
           </motion.div>
         ) : (
           <motion.div

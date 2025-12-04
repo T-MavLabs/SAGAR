@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, Suspense } from 'react';
 import ReactDOM from 'react-dom';
 import { motion } from 'framer-motion';
-import { FiArrowLeft, FiFilter, FiPlus, FiActivity, FiTrendingUp, FiSearch, FiX, FiClock, FiDatabase } from 'react-icons/fi';
+import { FiArrowLeft, FiFilter, FiPlus, FiActivity, FiTrendingUp, FiSearch, FiX, FiClock, FiDatabase, FiFileText, FiEdit2, FiTrash2, FiSave, FiPenTool } from 'react-icons/fi';
 import { Project, DataPoint } from '../App';
 import ReactGlobeComponent from './ReactGlobeComponent';
 import { Card, CardTitle, CardDescription, CardSkeletonContainer } from './ui/aceternityCards';
@@ -11,6 +11,7 @@ import ragService, { DataType } from '../services/ragService';
 import otolithService from '../services/otolithService';
 import ednaService from '../services/ednaService';
 import queryHistoryService from '../services/queryHistoryService';
+import studyNotesService from '../services/studyNotesService';
 
 interface GlobeViewProps {
   selectedProject: Project | null;
@@ -52,6 +53,15 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(null);
+  const [showNotesPanel, setShowNotesPanel] = useState<boolean>(false);
+  const [notesPanelNotes, setNotesPanelNotes] = useState<any[]>([]);
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [selectedPanelNote, setSelectedPanelNote] = useState<any | null>(null);
+  const [isCreatingPanelNote, setIsCreatingPanelNote] = useState(false);
+  const [panelNoteTitle, setPanelNoteTitle] = useState('');
+  const [panelNoteContent, setPanelNoteContent] = useState('');
+  const [savingPanelNote, setSavingPanelNote] = useState(false);
 
   const loadQueryHistory = async () => {
     setIsLoadingHistory(true);
@@ -133,6 +143,125 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
       filters.push(`Types: ${options.dataTypes.join(', ')}`);
     }
     return filters.length > 0 ? filters.join(' • ') : null;
+  };
+
+  const loadNotesPanel = async () => {
+    if (!selectedProject?.id) {
+      setNotesError('No project selected');
+      return;
+    }
+    setIsLoadingNotes(true);
+    setNotesError(null);
+    try {
+      const data = await studyNotesService.getNotesByProject(selectedProject.id);
+      setNotesPanelNotes(data);
+    } catch (e: any) {
+      setNotesError(e.message || 'Failed to load notes');
+    } finally {
+      setIsLoadingNotes(false);
+    }
+  };
+
+  const handlePanelCreateNote = () => {
+    setIsCreatingPanelNote(true);
+    setSelectedPanelNote(null);
+    setPanelNoteTitle('');
+    setPanelNoteContent('');
+    setNotesError(null);
+  };
+
+  const handlePanelEditNote = (note: any) => {
+    setSelectedPanelNote(note);
+    setIsCreatingPanelNote(false);
+    setPanelNoteTitle(note.title);
+    setPanelNoteContent(note.content);
+    setNotesError(null);
+  };
+
+  const handlePanelSaveNote = async () => {
+    if (!selectedProject?.id) {
+      setNotesError('No project selected');
+      return;
+    }
+
+    if (!panelNoteTitle.trim() || !panelNoteContent.trim()) {
+      setNotesError('Title and content are required');
+      return;
+    }
+
+    setSavingPanelNote(true);
+    setNotesError(null);
+
+    try {
+      if (isCreatingPanelNote) {
+        const newNote = await studyNotesService.createNote({
+          project_id: selectedProject.id,
+          title: panelNoteTitle.trim(),
+          content: panelNoteContent.trim(),
+        });
+        if (newNote) {
+          await loadNotesPanel();
+          setIsCreatingPanelNote(false);
+          setSelectedPanelNote(null);
+          setPanelNoteTitle('');
+          setPanelNoteContent('');
+        } else {
+          setNotesError('Failed to create note');
+        }
+      } else if (selectedPanelNote) {
+        const updatedNote = await studyNotesService.updateNote(selectedPanelNote.id, {
+          title: panelNoteTitle.trim(),
+          content: panelNoteContent.trim(),
+        });
+        if (updatedNote) {
+          await loadNotesPanel();
+          setIsCreatingPanelNote(false);
+          setSelectedPanelNote(null);
+          setPanelNoteTitle('');
+          setPanelNoteContent('');
+        } else {
+          setNotesError('Failed to update note');
+        }
+      }
+    } catch (e: any) {
+      setNotesError(e.message || 'Failed to save note');
+    } finally {
+      setSavingPanelNote(false);
+    }
+  };
+
+  const handlePanelDeleteNote = async (noteId: string) => {
+    if (!window.confirm('Are you sure you want to delete this note?')) {
+      return;
+    }
+
+    try {
+      const success = await studyNotesService.deleteNote(noteId);
+      if (success) {
+        await loadNotesPanel();
+        if (selectedPanelNote?.id === noteId) {
+          setSelectedPanelNote(null);
+          setIsCreatingPanelNote(false);
+          setPanelNoteTitle('');
+          setPanelNoteContent('');
+        }
+      } else {
+        setNotesError('Failed to delete note');
+      }
+    } catch (e: any) {
+      setNotesError(e.message || 'Failed to delete note');
+    }
+  };
+
+  const formatNotesDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   useEffect(() => {
@@ -1107,7 +1236,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
       ) : activeMode === 'Visualise' ? (
         <VisualiseView allData={dataPoints} />
       ) : (
-        <StudyView />
+        <StudyView selectedProject={selectedProject} />
       )}
 
       {/* Query History Panel */}
@@ -1229,6 +1358,196 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
                   );
                 })}
               </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Floating Notes Button */}
+      {selectedProject && (
+        <motion.div
+          className="fixed bottom-6 right-6 z-50 group"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <button
+            onClick={() => {
+              setShowNotesPanel(!showNotesPanel);
+              if (!showNotesPanel) {
+                loadNotesPanel();
+              }
+            }}
+            className="relative flex items-center"
+          >
+            {/* Pill shape that appears on hover */}
+            <div className="absolute right-full mr-2 flex items-center space-x-2 px-4 py-2 bg-marine-cyan text-marine-blue font-semibold rounded-full shadow-lg shadow-marine-cyan/25 whitespace-nowrap opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-200 pointer-events-none">
+              <FiPenTool className="w-4 h-4" />
+              <span className="text-sm">Notes</span>
+            </div>
+            {/* Circular button */}
+            <motion.div
+              className="w-14 h-14 rounded-full bg-marine-cyan text-marine-blue flex items-center justify-center shadow-lg shadow-marine-cyan/25 hover:shadow-xl hover:shadow-marine-cyan/40 transition-all duration-200"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <FiPenTool className="w-6 h-6" />
+            </motion.div>
+          </button>
+        </motion.div>
+      )}
+
+      {/* Notes Panel */}
+      {showNotesPanel && (
+        <motion.div
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="fixed top-0 right-0 h-full w-full max-w-2xl bg-gray-900/95 backdrop-blur-md border-l border-gray-700/50 z-[100] shadow-2xl overflow-y-auto"
+        >
+          <div className="sticky top-0 bg-gray-900/95 backdrop-blur-md border-b border-gray-700/50 px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <FiPenTool className="w-6 h-6 text-marine-cyan" />
+              <h2 className="text-2xl font-bold text-white">Notes</h2>
+            </div>
+            <button
+              onClick={() => setShowNotesPanel(false)}
+              className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-6">
+            {!selectedProject ? (
+              <div className="py-16 text-center">
+                <FiFileText className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400 text-lg mb-2">No project selected</p>
+                <p className="text-gray-500 text-sm">
+                  Please select a project to view and manage notes
+                </p>
+              </div>
+            ) : (
+              <>
+                {notesError && (
+                  <div className="mb-4 p-4 bg-red-900/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
+                    {notesError}
+                  </div>
+                )}
+
+                {/* Create/Edit Note Form */}
+                {(isCreatingPanelNote || selectedPanelNote) ? (
+                  <div className="mb-6">
+                    <div className="mb-4">
+                      <input
+                        type="text"
+                        value={panelNoteTitle}
+                        onChange={(e) => setPanelNoteTitle(e.target.value)}
+                        placeholder="Note title..."
+                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:border-marine-cyan focus:outline-none mb-3"
+                      />
+                      <textarea
+                        value={panelNoteContent}
+                        onChange={(e) => setPanelNoteContent(e.target.value)}
+                        placeholder="Write your notes here..."
+                        className="w-full h-[400px] px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:border-marine-cyan focus:outline-none resize-none"
+                      />
+                    </div>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => {
+                          setIsCreatingPanelNote(false);
+                          setSelectedPanelNote(null);
+                          setPanelNoteTitle('');
+                          setPanelNoteContent('');
+                          setNotesError(null);
+                        }}
+                        disabled={savingPanelNote}
+                        className="px-4 py-2 border border-white/20 text-white/80 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handlePanelSaveNote}
+                        disabled={savingPanelNote || !panelNoteTitle.trim() || !panelNoteContent.trim()}
+                        className="px-4 py-2 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50"
+                      >
+                        <FiSave className="w-4 h-4" />
+                        <span>{savingPanelNote ? 'Saving...' : 'Save Note'}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-6">
+                    <button
+                      onClick={handlePanelCreateNote}
+                      className="w-full px-4 py-3 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200 flex items-center justify-center space-x-2"
+                    >
+                      <FiPlus className="w-5 h-5" />
+                      <span>Create New Note</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Notes List */}
+                {isLoadingNotes ? (
+                  <div className="py-16 text-center text-gray-400">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-marine-cyan mb-4"></div>
+                    <p>Loading notes...</p>
+                  </div>
+                ) : notesPanelNotes.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <FiFileText className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400 text-lg mb-2">No notes yet</p>
+                    <p className="text-gray-500 text-sm">
+                      Create your first note to get started
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {notesPanelNotes.map((note, index) => (
+                      <motion.div
+                        key={note.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-5 hover:border-marine-cyan/50 transition-all duration-200"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white font-medium text-base mb-2 break-words">
+                              {note.title}
+                            </h4>
+                            <p className="text-sm text-gray-300 line-clamp-3 mb-3">
+                              {note.content}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {formatNotesDate(note.updated_at)}
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2 flex-shrink-0">
+                            <button
+                              onClick={() => handlePanelEditNote(note)}
+                              className="px-3 py-1.5 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200 flex items-center space-x-2 text-sm"
+                            >
+                              <FiEdit2 className="w-4 h-4" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handlePanelDeleteNote(note.id)}
+                              className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-colors duration-200"
+                              title="Delete note"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </motion.div>
@@ -2195,6 +2514,291 @@ function DepthDistributionChart({ data }: { data: DataPoint[] }) {
   );
 }
 
+function NotesModule({ selectedProject }: { selectedProject: Project | null }) {
+  const [notes, setNotes] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedNote, setSelectedNote] = useState<any | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteContent, setNoteContent] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (selectedProject?.id) {
+      loadNotes();
+    } else {
+      setIsLoading(false);
+      setNotes([]);
+    }
+  }, [selectedProject?.id]);
+
+  const loadNotes = async () => {
+    if (!selectedProject?.id) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await studyNotesService.getNotesByProject(selectedProject.id);
+      setNotes(data);
+    } catch (e: any) {
+      setError(e.message || 'Failed to load notes');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateNote = () => {
+    setIsCreating(true);
+    setIsEditing(false);
+    setSelectedNote(null);
+    setNoteTitle('');
+    setNoteContent('');
+    setError(null);
+  };
+
+  const handleEditNote = (note: any) => {
+    setSelectedNote(note);
+    setIsEditing(true);
+    setIsCreating(false);
+    setNoteTitle(note.title);
+    setNoteContent(note.content);
+    setError(null);
+  };
+
+  const handleSaveNote = async () => {
+    if (!selectedProject?.id) {
+      setError('No project selected');
+      return;
+    }
+
+    if (!noteTitle.trim() || !noteContent.trim()) {
+      setError('Title and content are required');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      if (isCreating) {
+        const newNote = await studyNotesService.createNote({
+          project_id: selectedProject.id,
+          title: noteTitle.trim(),
+          content: noteContent.trim(),
+        });
+        if (newNote) {
+          await loadNotes();
+          setIsCreating(false);
+          setSelectedNote(null);
+          setNoteTitle('');
+          setNoteContent('');
+        } else {
+          setError('Failed to create note');
+        }
+      } else if (selectedNote) {
+        const updatedNote = await studyNotesService.updateNote(selectedNote.id, {
+          title: noteTitle.trim(),
+          content: noteContent.trim(),
+        });
+        if (updatedNote) {
+          await loadNotes();
+          setIsEditing(false);
+          setSelectedNote(null);
+          setNoteTitle('');
+          setNoteContent('');
+        } else {
+          setError('Failed to update note');
+        }
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to save note');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!window.confirm('Are you sure you want to delete this note?')) {
+      return;
+    }
+
+    try {
+      const success = await studyNotesService.deleteNote(noteId);
+      if (success) {
+        await loadNotes();
+        if (selectedNote?.id === noteId) {
+          setSelectedNote(null);
+          setIsEditing(false);
+          setIsCreating(false);
+          setNoteTitle('');
+          setNoteContent('');
+        }
+      } else {
+        setError('Failed to delete note');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to delete note');
+    }
+  };
+
+  const handleCancel = () => {
+    setIsCreating(false);
+    setIsEditing(false);
+    setSelectedNote(null);
+    setNoteTitle('');
+    setNoteContent('');
+    setError(null);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  if (!selectedProject) {
+    return (
+      <div className="text-white/60 text-center py-12">
+        <FiFileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+        <p>Please select a project to view and manage notes</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full min-h-[600px]">
+      {error && (
+        <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
+          {error}
+        </div>
+      )}
+
+      <div className="flex flex-1 gap-4">
+        {/* Notes List Sidebar */}
+        <div className="w-80 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white">Notes</h3>
+            <button
+              onClick={handleCreateNote}
+              className="px-3 py-1.5 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200 flex items-center space-x-2 text-sm"
+            >
+              <FiPlus className="w-4 h-4" />
+              <span>New Note</span>
+            </button>
+          </div>
+
+          {isLoading ? (
+            <div className="text-white/60 text-sm text-center py-8">Loading notes...</div>
+          ) : notes.length === 0 ? (
+            <div className="text-white/60 text-sm text-center py-8">
+              <FiFileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No notes yet. Create your first note!</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              {notes.map((note) => (
+                <div
+                  key={note.id}
+                  onClick={() => handleEditNote(note)}
+                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                    selectedNote?.id === note.id
+                      ? 'border-marine-cyan bg-marine-cyan/10'
+                      : 'border-white/20 bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-white font-medium text-sm mb-1 truncate">
+                        {note.title}
+                      </h4>
+                      <p className="text-white/60 text-xs line-clamp-2 mb-2">
+                        {note.content}
+                      </p>
+                      <p className="text-white/40 text-xs">
+                        {formatDate(note.updated_at)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteNote(note.id);
+                      }}
+                      className="p-1 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded transition-colors"
+                      title="Delete note"
+                    >
+                      <FiTrash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Note Editor */}
+        <div className="flex-1">
+          {(isCreating || isEditing) ? (
+            <div className="h-full flex flex-col">
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={noteTitle}
+                  onChange={(e) => setNoteTitle(e.target.value)}
+                  placeholder="Note title..."
+                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:border-marine-cyan focus:outline-none mb-3"
+                />
+                <textarea
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  placeholder="Write your notes here..."
+                  className="w-full h-[500px] px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:border-marine-cyan focus:outline-none resize-none"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={handleCancel}
+                  disabled={saving}
+                  className="px-4 py-2 border border-white/20 text-white/80 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveNote}
+                  disabled={saving || !noteTitle.trim() || !noteContent.trim()}
+                  className="px-4 py-2 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50"
+                >
+                  <FiSave className="w-4 h-4" />
+                  <span>{saving ? 'Saving...' : 'Save Note'}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="h-full flex items-center justify-center text-white/60">
+              <div className="text-center">
+                <FiFileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p className="mb-2">Select a note to edit or create a new one</p>
+                <button
+                  onClick={handleCreateNote}
+                  className="px-4 py-2 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all duration-200 flex items-center space-x-2 mx-auto"
+                >
+                  <FiPlus className="w-4 h-4" />
+                  <span>Create New Note</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default GlobeView;
 
 function Lineage({ name }: { name: string }) {
@@ -2229,8 +2833,8 @@ function Lineage({ name }: { name: string }) {
   );
 }
 
-function StudyView() {
-  const [tab, setTab] = useState<'Taxonomy' | 'Otolith' | 'eDNA'>('Taxonomy');
+function StudyView({ selectedProject }: { selectedProject: Project | null }) {
+  const [tab, setTab] = useState<'Taxonomy' | 'Otolith' | 'eDNA' | 'Notes'>('Taxonomy');
   const [search, setSearch] = useState('');
   return (
     <div className="pt-20 min-h-screen relative">
@@ -2241,17 +2845,22 @@ function StudyView() {
       </Suspense>
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
         <div className="flex flex-wrap items-center gap-3 mb-4">
-          {(['Taxonomy','Otolith','eDNA'] as const).map(name => (
+          {(['Taxonomy','Otolith','eDNA','Notes'] as const).map(name => (
             <button key={name} onClick={() => setTab(name)} className={`px-4 py-2 rounded-xl border text-sm ${tab===name ? 'border-white/40 bg-white/10 text-white' : 'border-white/20 text-white/80 hover:bg-white/10'}`}>{name}</button>
           ))}
           <div className="flex-1" />
-          <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Quick search..." className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none min-w-[260px]" />
-          <button className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Export (mock)</button>
+          {tab !== 'Notes' && (
+            <>
+              <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Quick search..." className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none min-w-[260px]" />
+              <button className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Export (mock)</button>
+            </>
+          )}
         </div>
         <div className="bg-black/30 backdrop-blur-md border border-white/15 rounded-2xl p-4">
           {tab === 'Taxonomy' && <TaxonomyModule globalSearch={search} />}
           {tab === 'Otolith' && <OtolithModule globalSearch={search} />}
           {tab === 'eDNA' && <EDNAModule globalSearch={search} />}
+          {tab === 'Notes' && <NotesModule selectedProject={selectedProject} />}
         </div>
       </div>
     </div>

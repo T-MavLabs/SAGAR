@@ -398,10 +398,10 @@ function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
+            {/* FIXED: Remove marineStats prop */}
             <LandingPage 
               onEnter={() => setCurrentView('dashboard')} 
               onUserLogin={handleUserLogin}
-              marineStats={marineStats}
             />
           </motion.div>
         ) : currentView === 'dashboard' ? (

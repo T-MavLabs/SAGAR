@@ -3,7 +3,7 @@
  * Handles scientific queries and marine data searches (Occurrence, CTD, AWS, ADCP)
  */
 
-const RAG_API_BASE_URL = process.env.REACT_APP_RAG_API_URL || 'http://localhost:8000';
+const RAG_API_BASE_URL = process.env.REACT_APP_RAG_API_URL || 'https://rag.nikare.in';
 
 export type DataType = 'OCCURRENCE' | 'CTD' | 'AWS' | 'ADCP' | 'ALL';
 

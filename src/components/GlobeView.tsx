@@ -617,7 +617,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
       ]);
       
       // Fallback to basic analysis
-      const fallbackInsight = `Based on ${filteredData.length} filtered occurrence(s), your query "${analysisInput.trim()}" relates to marine biodiversity data. For detailed answers, please ensure the RAG API is running at http://localhost:8000`;
+      const fallbackInsight = `Based on ${filteredData.length} filtered occurrence(s), your query "${analysisInput.trim()}" relates to marine biodiversity data. For detailed answers, please ensure the RAG API is accessible at https://rag.nikare.in`;
       setInsight(fallbackInsight);
     } finally {
     setIsAnalyzing(false);

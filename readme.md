@@ -30,6 +30,7 @@ SAGAR provides scientists with:
 - **Data Type Selection**: Filter by OCCURRENCE, CTD, AWS, ADCP or auto-detect
 - **Search Bar**: Bottom-centered search bar with data type selector
 - **Query History**: Access all previous RAG queries with one-click result restoration
+- **Floating Notes Button**: Quick access to project notes from anywhere in the view
 
 ### AI-Powered Analysis (SagarManthan-RAG Integration)
 
@@ -130,7 +131,7 @@ AI-generated comprehensive summary including:
 
 ### Study Modules
 
-Three scientist-oriented modules with consistent grey glass UI:
+Four scientist-oriented modules with consistent grey glass UI:
 
 #### 1) Taxonomy 🐠
 - Browse marine hierarchy and search via GBIF suggest (≥3 chars)
@@ -168,6 +169,20 @@ Three scientist-oriented modules with consistent grey glass UI:
   - Sequence length
 - CSV export functionality
 - Species distribution pie chart from API results
+
+#### 4) Notes 📝
+- **Project-Specific Notes**: Write and store research notes tied to specific projects
+- **Quick Access**: Floating button available from anywhere in the project (Globe View and Query Results)
+- **Full CRUD Operations**: Create, read, update, and delete notes
+- **Persistent Storage**: All notes stored in Supabase `study_notes` table
+- **Side Panel Interface**: Slide-in panel for easy note management
+- **Features**:
+  - Create new notes with title and content
+  - Edit existing notes
+  - Delete notes
+  - View all project notes in a list
+  - Auto-save with timestamps
+  - Project-specific filtering (only shows notes for current project)
 
 ## Technology Stack
 
@@ -262,6 +277,17 @@ Three scientist-oriented modules with consistent grey glass UI:
    - Full response data (JSONB)
    - Timestamps and metadata
 
+3. **Create the study_notes table**:
+   ```sql
+   -- Run sql_runs_study_notes.sql in Supabase SQL Editor
+   ```
+   
+   This creates a table to store project-specific research notes with:
+   - Note title and content
+   - Project association (foreign key to projects table)
+   - Timestamps (created_at, updated_at)
+   - Automatic cascade delete when project is deleted
+
 ### Backend Setup (SagarManthan-RAG)
 
 See `../SagarManthan-RAG/readme.md` for complete setup instructions.
@@ -302,6 +328,7 @@ SAGAR/
 │   │   ├── ragService.ts              # SagarManthan-RAG API client
 │   │   ├── supabaseClient.ts          # Supabase client
 │   │   ├── queryHistoryService.ts     # Query history management
+│   │   ├── studyNotesService.ts        # Study notes management
 │   │   ├── otolithService.ts          # Otolith Classifier API client
 │   │   └── ednaService.ts             # eDNA Sequence Matcher API client
 │   ├── App.tsx                        # Main application component
@@ -345,6 +372,12 @@ SAGAR/
    - Click "Query History" button in Globe View header
    - Browse all previous queries
    - Click "View" to restore any query's results
+
+7. **Add Research Notes**:
+   - Click the floating Notes button (bottom-right corner) from anywhere in the project
+   - Available in Globe View and Query Results View
+   - Create, edit, and manage project-specific notes
+   - Notes are automatically saved and associated with the current project
 
 ### Example Queries
 
@@ -402,6 +435,7 @@ SAGAR/
 - **Type-Specific Visualizations**: Different charts for CTD, AWS, ADCP
 - **Comprehensive Summaries**: AI-generated insights
 - **Complete Dataset**: All matching records for research
+- **Floating Notes Button**: Add research notes while viewing query results
 
 ### Data Interaction
 - Hover tooltips showing species and location
@@ -600,9 +634,9 @@ This project is licensed under the MIT License.
 
 ---
 
-## Study Modules (Taxonomy, Otolith, eDNA)
+## Study Modules (Taxonomy, Otolith, eDNA, Notes)
 
-The Study section provides three scientist-oriented modules with a consistent grey glass UI over the stars background. They run fully client-side with mock-safe defaults and optional live data where noted.
+The Study section provides four scientist-oriented modules with a consistent grey glass UI over the stars background. They run fully client-side with mock-safe defaults and optional live data where noted.
 
 ### 1) Taxonomy 🐠
 
@@ -673,15 +707,49 @@ The Study section provides three scientist-oriented modules with a consistent gr
 - Formatted, user-friendly results display
 - Automatic FASTA parsing
 
+### 4) Notes 📝
+
+- **Project-Specific Research Notes**: Write and store notes tied to specific research projects
+- **Floating Quick Access**: Circular button with pen icon in bottom-right corner
+  - Expands to pill shape on hover showing "Notes" label
+  - Available from Globe View (all modes) and Query Results View
+  - Only visible when a project is selected
+- **Side Panel Interface**: 
+  - Slides in from the right when button is clicked
+  - Full note management interface
+  - Create, edit, and delete notes
+  - View all project notes in a scrollable list
+- **Features**:
+  - **Create Notes**: Add new notes with title and content
+  - **Edit Notes**: Update existing notes
+  - **Delete Notes**: Remove notes with confirmation
+  - **Auto-Save**: Notes automatically saved with timestamps
+  - **Project Filtering**: Only shows notes for the current project
+  - **Persistent Storage**: All notes stored in Supabase `study_notes` table
+- **Database Integration**:
+  - Foreign key relationship to `projects` table
+  - Automatic cascade delete when project is deleted
+  - Timestamps for created_at and updated_at
+  - Full-text search support via GIN index
+
+**Usage:**
+1. Select a project in the Dashboard
+2. Navigate to Globe View or Query Results View
+3. Click the floating Notes button (bottom-right corner)
+4. Create, edit, or view project notes in the side panel
+5. Notes are automatically saved and associated with the project
+
 **API Integration Status:**
 - **Taxonomy**: Uses GBIF and Wikipedia APIs (live)
 - **Otolith**: Integrated with Otolith Classifier API (HuggingFace Space)
 - **eDNA**: Integrated with eDNA Sequence Matcher API (Vercel)
+- **Notes**: Supabase database integration with full CRUD operations
 
 **Notes:**
 - Modules handle empty states and graceful fallbacks so the UI always renders
 - Live API calls are made directly from the browser
 - Error handling implemented for API failures
+- Notes feature requires project selection to function
 - For production, consider moving to a backend proxy for rate limits, CORS, and API key management
 
 ---

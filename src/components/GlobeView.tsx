@@ -164,18 +164,6 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
     })).sort((a, b) => a.depth - b.depth);
   };
 
-  const generateCategoryCounts = (data: DataPoint[], key: 'waterBody' | 'samplingProtocol') => {
-    const counts: { [name: string]: number } = {};
-    data.forEach(point => {
-      const val = (point as any)[key];
-      if (val) counts[val] = (counts[val] || 0) + 1;
-    });
-    return Object.entries(counts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 12);
-  };
-
   // no-op here; VisualiseView will compute from raw data
 
   const handleAnalyze = async () => {
@@ -306,11 +294,11 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
                 onChange={(e) => setDataLayer(e.target.value as typeof dataLayer)}
                 className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:border-marine-cyan focus:outline-none backdrop-blur-sm"
               >
-                <option>Species Occurrences</option>
-                <option>Sea Surface Temperature (SST)</option>
-                <option>Salinity</option>
-                <option>Chlorophyll Concentration</option>
-                <option>eDNA Detections</option>
+                <option className="bg-gray-900 text-white">Species Occurrences</option>
+                <option className="bg-gray-900 text-white">Sea Surface Temperature (SST)</option>
+                <option className="bg-gray-900 text-white">Salinity</option>
+                <option className="bg-gray-900 text-white">Chlorophyll Concentration</option>
+                <option className="bg-gray-900 text-white">eDNA Detections</option>
               </select>
               {dataLayer !== 'Species Occurrences' && (
                 <p className="mt-2 text-xs text-white/70">Placeholder layer for future integration.</p>
@@ -373,15 +361,15 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
                 <div>
                   <label className="block text-xs text-white/70 mb-1">Water Body</label>
                   <select value={newWaterBody} onChange={(e) => setNewWaterBody(e.target.value)} className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:border-marine-cyan focus:outline-none backdrop-blur-sm">
-                    <option value="">Select water body</option>
-                    {uniqueWaterBodies.map(w => <option key={w} value={w}>{w}</option>)}
+                    <option value="" className="bg-gray-900 text-white">Select water body</option>
+                    {uniqueWaterBodies.map(w => <option key={w} value={w} className="bg-gray-900 text-white">{w}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-white/70 mb-1">Location (Locality)</label>
                   <select value={newLocality} onChange={(e) => setNewLocality(e.target.value)} className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:border-marine-cyan focus:outline-none backdrop-blur-sm">
-                    <option value="">Select locality</option>
-                    {uniqueLocalities.slice(0, 200).map(l => <option key={l} value={l}>{l}</option>)}
+                    <option value="" className="bg-gray-900 text-white">Select locality</option>
+                    {uniqueLocalities.slice(0, 200).map(l => <option key={l} value={l} className="bg-gray-900 text-white">{l}</option>)}
                   </select>
                 </div>
                 <div>
@@ -401,7 +389,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
                 <div>
                   <label className="block text-xs text-white/70 mb-1">Collection Method</label>
                   <select multiple value={methods} onChange={(e) => setMethods(Array.from(e.target.selectedOptions).map(o => o.value))} className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:border-marine-cyan focus:outline-none min-h-[80px] backdrop-blur-sm">
-                    {uniqueMethods.map(m => <option key={m} value={m}>{m}</option>)}
+                    {uniqueMethods.map(m => <option key={m} value={m} className="bg-gray-900 text-white">{m}</option>)}
                   </select>
                 </div>
               </div>
@@ -1758,7 +1746,7 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
   // Helper to format species names nicely
   const formatSpeciesName = (name: string) => {
     return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-  };
+    };
 
   // Fallback classification (This is now our main function)
   const fallbackClassification = async (file: File) => {
@@ -2457,11 +2445,11 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
         <div className="flex flex-col gap-2 min-w-[180px]">
           <label className="text-white/70 text-xs">Marker</label>
           <select value={marker} onChange={(e)=>setMarker(e.target.value)} className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm">
-            <option>COI</option>
-            <option>12S</option>
-            <option>16S</option>
-            <option>rbcL</option>
-            <option>other</option>
+            <option className="bg-gray-900 text-white">COI</option>
+            <option className="bg-gray-900 text-white">12S</option>
+            <option className="bg-gray-900 text-white">16S</option>
+            <option className="bg-gray-900 text-white">rbcL</option>
+            <option className="bg-gray-900 text-white">other</option>
           </select>
           <label className="text-white/70 text-xs">Min identity (%)</label>
           <input type="number" min={50} max={100} value={minIdentity} onChange={(e)=>setMinIdentity(Math.max(50, Math.min(100, Number(e.target.value)||85)))} className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm" />

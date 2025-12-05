@@ -134,17 +134,17 @@ AI-generated comprehensive summary including:
 Four scientist-oriented modules with consistent grey glass UI:
 
 #### 1) Taxonomy 🐠
-- Browse marine hierarchy and search via GBIF suggest (≥3 chars)
+- Browse marine hierarchy and search by entering scientific names directly
+- Enter scientific name and press Enter or click Search to load species data
 - Species information: Scientific name, authorship, lineage
 - Common names (vernaculars)
-- Occurrence distribution by country (bar chart)
-- Image thumbnails from GBIF (Wikipedia fallback)
+- Occurrence distribution by country/region (bar chart)
+- Image thumbnails from Taxonomy API
 - Clickable lineage segments for navigation
 - Per-session Favorites
 
 **Data Sources:**
-- GBIF Species/Occurrence API: `https://api.gbif.org/v1`
-- Wikipedia REST (thumbnail fallback)
+- Taxonomy API: `https://taxa-2.vercel.app/taxon?scientific_name={scientific_name}`
 
 #### 2) Otolith Morphology 🔬
 - Upload multiple images; select thumbnails to open viewer

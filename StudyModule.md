@@ -4,20 +4,20 @@ The Study section provides three scientist-oriented modules with a consistent gr
 
 ### 1) Taxonomy 🐠
 
-- Browse a mock marine hierarchy and search live via GBIF suggest (≥3 chars)
+- Browse a mock marine hierarchy and search by entering scientific names directly
+- Enter a scientific name in the search field and press Enter or click Search to load species data
 - Select a species to load:
   - Scientific name and authorship
   - Rank and lineage (kingdom → species)
   - Common names (vernaculars)
-  - Occurrence distribution by country (bar chart)
-  - Image thumbnails from occurrence media (falls back to Wikipedia thumbnail)
+  - Occurrence distribution by country/region (bar chart)
+  - Image thumbnails from taxonomy API
 - Clickable lineage breadcrumbs for quick navigation
 - Favorites list per session
 
 Data sources used
-- GBIF Species API: `https://api.gbif.org/v1` (match, species, vernacularNames)
-- GBIF Occurrence API: facets by country, images (mediaType=StillImage)
-- Wikipedia REST (fallback thumbnail)
+- Taxonomy API: `https://taxa-2.vercel.app/taxon?scientific_name={scientific_name}`
+  - Returns: key, scientificName, authorship, rank, lineage, images, commonNames, distribution
 
 Future backend integration
 - Add WoRMS (AphiaID, marine status) and FishBase traits via a server proxy
@@ -37,15 +37,21 @@ Future backend integration
 
 ### 3) eDNA Data 🧬
 
-- Paste FASTA or upload `.fa/.fasta/.txt`
-- Choose marker (COI, 12S, 16S, rbcL, other) and set minimum identity threshold
-- Mock matcher computes identity vs. a small in-memory barcode set
-- Results table (read, match, identity %, length, marker) with CSV export
-- Species distribution pie chart from matches
+- Paste FASTA or upload `.fa/.fasta/.txt` files
+- Enter raw DNA sequences (with or without FASTA headers)
+- Match sequences against reference database
+- View detailed results with:
+  - Marker type detection
+  - Sequence length
+  - Top match with confidence score
+  - All matches with specimen IDs and reference lengths
+  - Number of reference sequences compared
+- Species distribution pie chart from top matches
+- CSV export functionality
 
-Planned API integration
-- BOLD Systems API for barcode matching
-- ENA/NCBI (E-utilities) for sequence retrieval and metadata
+Data sources used
+- eDNA API: `https://sagar-e-dna-2.vercel.app/edna/match_sequence?raw_sequence={sequence}`
+  - Returns: raw_sequence, marker_type, sequence_length, matches array, summary object
 - Optional serverless proxy for BLAST-like alignment
 
 ### Notes

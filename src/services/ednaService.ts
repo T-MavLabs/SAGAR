@@ -3,17 +3,28 @@
  * Handles eDNA sequence matching and species identification
  */
 
-const EDNA_API_BASE_URL = process.env.REACT_APP_EDNA_API_URL || 'https://sagar-e-dna.vercel.app';
+const EDNA_API_BASE_URL = process.env.REACT_APP_EDNA_API_URL || 'https://sagar-e-dna-2.vercel.app';
 
-export interface EDNAMatchRequest {
-  sequence: string;
+export interface EDNAMatch {
+  specimen_id: string;
+  scientificName: string;
+  confidence: number;
+  reference_length: number;
+}
+
+export interface EDNASummary {
+  top_match_specimen_id: string;
+  top_match_scientificName: string;
+  confidence: number;
+  num_reference_sequences_compared: number;
 }
 
 export interface EDNAMatchResponse {
-  identifier: string;
-  species_name: string;
-  confidence_score: number;
-  raw_score: number;
+  raw_sequence: string;
+  marker_type: string;
+  sequence_length: number;
+  matches: EDNAMatch[];
+  summary: EDNASummary;
 }
 
 export interface EDNAErrorResponse {
@@ -35,13 +46,13 @@ export class EDNAService {
 
   /**
    * Match eDNA sequence to identify species
-   * @param sequence - DNA sequence string (without FASTA header)
-   * @returns Match result with species identification
+   * @param rawSequence - Raw DNA sequence string (without FASTA header)
+   * @returns Match result with species identification, matches, and summary
    */
-  async matchSequence(sequence: string): Promise<EDNAMatchResponse> {
+  async matchSequence(rawSequence: string): Promise<EDNAMatchResponse> {
     try {
       // Clean the sequence - remove whitespace and ensure uppercase
-      const cleanSequence = sequence.trim().toUpperCase().replace(/\s+/g, '');
+      const cleanSequence = rawSequence.trim().toUpperCase().replace(/\s+/g, '');
 
       if (!cleanSequence) {
         throw new Error('Sequence cannot be empty');
@@ -52,12 +63,13 @@ export class EDNAService {
         throw new Error('Invalid DNA sequence. Sequence must contain only A, C, G, T, or N characters.');
       }
 
-      const response = await fetch(`${EDNA_API_BASE_URL}/api/v1/edna/match`, {
-        method: 'POST',
+      // Use GET request with raw_sequence as query parameter
+      const encodedSequence = encodeURIComponent(cleanSequence);
+      const response = await fetch(`${EDNA_API_BASE_URL}/edna/match_sequence?raw_sequence=${encodedSequence}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ sequence: cleanSequence }),
       });
 
       // Read response once
@@ -76,8 +88,8 @@ export class EDNAService {
       }
 
       // Validate response structure
-      if (!data.species_name && !data.identifier) {
-        throw new Error('Invalid API response format');
+      if (!data.raw_sequence || !data.matches || !data.summary) {
+        throw new Error('Invalid API response format: missing required fields');
       }
 
       return data as EDNAMatchResponse;

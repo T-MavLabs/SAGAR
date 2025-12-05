@@ -9,9 +9,11 @@ import { DataService } from '../services/dataService';
 import { SearchResultSummary } from './SearchResultsView';
 import ragService, { DataType } from '../services/ragService';
 import otolithService from '../services/otolithService';
-import ednaService from '../services/ednaService';
+import ednaService, { EDNAMatchResponse } from '../services/ednaService';
 import queryHistoryService from '../services/queryHistoryService';
 import studyNotesService from '../services/studyNotesService';
+import taxonomyService, { LineageItem } from '../services/taxonomyService';
+import geminiService from '../services/geminiService';
 
 interface GlobeViewProps {
   selectedProject: Project | null;
@@ -2849,12 +2851,6 @@ function StudyView({ selectedProject }: { selectedProject: Project | null }) {
             <button key={name} onClick={() => setTab(name)} className={`px-4 py-2 rounded-xl border text-sm ${tab===name ? 'border-white/40 bg-white/10 text-white' : 'border-white/20 text-white/80 hover:bg-white/10'}`}>{name}</button>
           ))}
           <div className="flex-1" />
-          {tab !== 'Notes' && (
-            <>
-              <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Quick search..." className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none min-w-[260px]" />
-              <button className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Export (mock)</button>
-            </>
-          )}
         </div>
         <div className="bg-black/30 backdrop-blur-md border border-white/15 rounded-2xl p-4">
           {tab === 'Taxonomy' && <TaxonomyModule globalSearch={search} />}
@@ -2893,218 +2889,185 @@ function TaxonomyModule({ globalSearch }: { globalSearch: string }) {
     'Carcharhinus limbatus': { common: ['Blacktip shark'], iucn: 'VU', habitats: ['Coastal','Estuaries'], lengthCm: [120,200], diet: ['Fish'], refs: ['IUCN 2019'], occurrencesByRegion: [{x:'Atlantic',y:33},{x:'Indian',y:21},{x:'Pacific',y:27}], images: [] }
   };
   const [query, setQuery] = useState('');
-  const [liveResults, setLiveResults] = useState<string[]>([]);
   const [path, setPath] = useState<string[]>(['Animalia']);
   const [selected, setSelected] = useState<string | null>(null);
   const [loadingReal, setLoadingReal] = useState(false);
-  const [realCommon, setRealCommon] = useState<string[]>([]);
-  const [realRegions, setRealRegions] = useState<{ x: string; y: number }[]>([]);
-  const [realImages, setRealImages] = useState<string[]>([]);
   const [realRank, setRealRank] = useState<string>('');
   const [realSci, setRealSci] = useState<string>('');
   const [realAuth, setRealAuth] = useState<string>('');
-  const [lineageObj, setLineageObj] = useState<{ parts: string[] } | null>(null);
+  const [realKey, setRealKey] = useState<number | null>(null);
+  const [lineageObj, setLineageObj] = useState<LineageItem[] | null>(null);
+  const [speciesSummary, setSpeciesSummary] = useState<string>('');
+  const [loadingSummary, setLoadingSummary] = useState(false);
   const level = path.reduce<any>((acc, key) => (acc && acc[key]) || acc, mockTree);
   const entries = Array.isArray(level) ? level.map((n) => ({ key: n, isLeaf: true })) : Object.keys(level || {}).map(k => ({ key: k, isLeaf: Array.isArray((level as any)[k]) }));
   const queryAll = (query || globalSearch).toLowerCase();
   const filtered = queryAll ? entries.filter(e => e.key.toLowerCase().includes(queryAll)) : entries;
   const [favorites, setFavorites] = useState<string[]>([]);
 
-  // Fetch live data from GBIF when a species is selected
+  // Fetch live data from Taxonomy API when a species is selected
   useEffect(() => {
-    const fetchGbif = async (name: string) => {
+    const fetchTaxon = async (name: string) => {
       try {
         setLoadingReal(true);
-        setRealCommon([]); setRealRegions([]); setRealImages([]); setRealRank(''); setRealSci(''); setRealAuth(''); setLineageObj(null);
-        const matchRes = await fetch(`https://api.gbif.org/v1/species/match?name=${encodeURIComponent(name)}`);
-        const match = await matchRes.json();
-        const key = match.usageKey || match.speciesKey || match.acceptedUsageKey;
-        if (key) {
-          // vernacular names
-          try {
-            const vRes = await fetch(`https://api.gbif.org/v1/species/${key}/vernacularNames`);
-            const vJson = await vRes.json();
-            const names: string[] = (vJson?.results || []).map((r: any) => r.vernacularName as string).filter(Boolean);
-            const uniq: string[] = Array.from(new Set<string>(names));
-            setRealCommon(uniq.slice(0, 6));
-          } catch {}
-          try {
-            const sRes = await fetch(`https://api.gbif.org/v1/species/${key}`);
-            const s = await sRes.json();
-            setRealRank(s.rank || '');
-            setRealSci(s.scientificName || name);
-            setRealAuth(s.authorship || '');
-            const parts: string[] = [];
-            if (s.kingdom) parts.push(s.kingdom);
-            if (s.phylum) parts.push(s.phylum);
-            if (s.class) parts.push(s.class);
-            if (s.order) parts.push(s.order);
-            if (s.family) parts.push(s.family);
-            if (s.genus) parts.push(s.genus);
-            if (s.species) parts.push(s.species);
-            setLineageObj({ parts });
-          } catch {}
+        setRealRank(''); 
+        setRealSci(''); 
+        setRealAuth(''); 
+        setRealKey(null);
+        setLineageObj(null);
+        
+        const taxonData = await taxonomyService.getTaxon(name);
+        
+        // Set key
+        setRealKey(taxonData.key);
+        
+        // Set scientific name and authorship (authorship can be null)
+        setRealSci(taxonData.scientificName || name);
+        setRealAuth(taxonData.authorship ?? ''); // Use nullish coalescing to handle null properly
+        setRealRank(taxonData.rank || '');
+        
+        // Set lineage (array of LineageItem objects)
+        if (taxonData.lineage && taxonData.lineage.length > 0) {
+          setLineageObj(taxonData.lineage);
         }
-        // Occurrence facet by country
+        
+        // Fetch species summary from Gemini
+        setLoadingSummary(true);
+        setSpeciesSummary('');
         try {
-          const base = key ? `taxonKey=${key}` : `scientificName=${encodeURIComponent(name)}`;
-          const facetRes = await fetch(`https://api.gbif.org/v1/occurrence/search?limit=0&${base}&facet=country&facetLimit=8`);
-          const facet = await facetRes.json();
-          const regions = (facet?.facets?.[0]?.counts || []).map((c: any) => ({ x: c.name, y: c.count })).slice(0, 8);
-          if (regions.length) {
-            setRealRegions(regions);
-          } else {
-            // fallback global count
-            const cnt = facet?.count || 0;
-            if (cnt) setRealRegions([{ x: 'Global', y: cnt }]);
-          }
-        } catch {}
-        // Images
-        try {
-          const base = key ? `taxonKey=${key}` : `scientificName=${encodeURIComponent(name)}`;
-          const imgRes = await fetch(`https://api.gbif.org/v1/occurrence/search?${base}&mediaType=StillImage&limit=9`);
-          const imgJson = await imgRes.json();
-          const imgs: string[] = [];
-          for (const r of imgJson.results || []) {
-            if (r.media && r.media.length) {
-              for (const m of r.media) {
-                if (m.identifier) imgs.push(m.identifier);
-              }
-            }
-          }
-          let finalImgs = imgs.slice(0, 9);
-          if (!finalImgs.length) {
-            // Wikipedia thumbnail fallback
-            try {
-              const title = encodeURIComponent(name.replace(/\s+/g, '_'));
-              const wRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${title}`);
-              const w = await wRes.json();
-              if (w?.thumbnail?.source) finalImgs = [w.thumbnail.source];
-            } catch {}
-          }
-          setRealImages(finalImgs);
-        } catch {}
-      } catch {
+          const summary = await geminiService.getSpeciesSummary(
+            taxonData.scientificName || name,
+            taxonData.rank,
+            taxonData.lineage
+          );
+          setSpeciesSummary(summary);
+        } catch (error) {
+          console.error('Failed to fetch species summary:', error);
+          setSpeciesSummary('Summary not available.');
+        } finally {
+          setLoadingSummary(false);
+        }
+        
+        // Common names, images, and distribution are not displayed per user requirements
+        // Data is still fetched but not stored in state
+      } catch (error) {
+        console.error('Failed to fetch taxon data:', error);
+        // Keep existing state on error, don't clear it
       } finally {
         setLoadingReal(false);
       }
     };
-    if (selected) fetchGbif(selected);
+    if (selected) fetchTaxon(selected);
   }, [selected]);
   return (
     <div>
-      <div className="flex items-center gap-3 mb-3 relative">
+      <div className="flex items-center gap-3 mb-3">
         <input
           value={query}
-          onChange={async (e)=>{
-            const val = e.target.value; setQuery(val);
-            if (val.length >= 3) {
-              try {
-                const res = await fetch(`https://api.gbif.org/v1/species/suggest?q=${encodeURIComponent(val)}&limit=8`);
-                const j = await res.json();
-                setLiveResults((j || []).map((r: any) => r.scientificName).filter(Boolean));
-              } catch { setLiveResults([]); }
-            } else { setLiveResults([]); }
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && query.trim()) {
+              setSelected(query.trim());
+              setQuery('');
+            }
           }}
-          placeholder="Search taxonomy (live from GBIF)..."
+          placeholder="Enter scientific name and press Enter..."
           className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none"
         />
-        {liveResults.length > 0 && (
-          <div className="absolute left-0 right-0 top-10 bg-black/80 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl z-[9999] max-h-60 overflow-auto">
-            {liveResults.map((name) => (
-              <button key={name} className="w-full text-left px-4 py-2 text-white/90 hover:bg-white/10 text-sm" onClick={()=>{ setSelected(name); setLiveResults([]); }}>
-                {name}
+        <button 
+          onClick={() => {
+            if (query.trim()) {
+              setSelected(query.trim());
+              setQuery('');
+            }
+          }}
+          className="px-4 py-2 bg-marine-cyan/20 border border-marine-cyan/40 rounded-xl text-white text-sm hover:bg-marine-cyan/30"
+        >
+          Search
               </button>
-            ))}
-          </div>
-        )}
-        <button onClick={()=>{ setQuery(''); setPath(['Animalia']); }} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Reset</button>
+        <button onClick={()=>{ setQuery(''); setPath(['Animalia']); setSelected(null); }} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Reset</button>
         <button onClick={()=>setFavorites([])} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Clear favorites</button>
       </div>
-      <div className="text-white/70 text-xs mb-2">
-        Path: {path.map((seg, idx) => (
-          <button key={idx} className={`underline-offset-2 ${idx===path.length-1 ? 'text-white/80' : 'text-white/60 underline hover:text-white/80'}`} onClick={()=> setPath(path.slice(0, idx+1))}>{seg}</button>
-        )).reduce((prev: any, curr: any) => prev===null ? [curr] : [...prev, ' › ', curr], null)}
-        {path.length>1 && (
-          <button className="ml-2 px-2 py-0.5 border border-white/20 rounded text-white/70" onClick={()=> setPath(p=>p.slice(0, -1))}>Back</button>
-        )}
-      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="border border-white/15 rounded-xl p-3 bg-white/5 max-h-[420px] overflow-auto">
-          {filtered.map(e => (
-            <div
-              key={e.key}
-              className="flex items-center justify-between px-2 py-2 rounded hover:bg-white/10 cursor-pointer"
-              onClick={()=>{ if (e.isLeaf) { setSelected(e.key); } else { setSelected(null); setPath(p=>[...p, e.key]); } }}
-            >
-              <span className="text-white/90 text-sm">{e.key}</span>
-              <div className="flex items-center gap-2">
-                <button onClick={(ev)=>{ ev.stopPropagation(); setFavorites(prev => prev.includes(e.key) ? prev.filter(x=>x!==e.key) : [...prev, e.key]); }} className="text-xs px-2 py-1 border border-white/20 rounded text-white/70 hover:bg-white/10">{favorites.includes(e.key) ? 'Unsave' : 'Save'}</button>
-                <span className="text-white/60 text-xs">{e.isLeaf ? 'species' : 'open'}</span>
+        {/* Left column - Taxonomic Lineage (narrower) */}
+        <div className="border border-white/15 rounded-xl p-3 bg-white/5 lg:col-span-1">
+          <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/10">
+            <div className="flex-1">
+              <div className="text-white/90 font-semibold text-lg">
+                {(realSci || selected) || 'Details'}
+                {realAuth && realAuth.trim() && (
+                  <span className="text-white/70 font-normal text-sm ml-2">{realAuth}</span>
+                )}
+                </div>
+              <div className="flex items-center gap-3 mt-1">
+                {realKey && (
+                  <div className="text-white/50 text-xs">GBIF Key: <span className="text-white/70 font-mono">{realKey}</span></div>
+                )}
+                {realRank && (
+                  <div className="text-white/50 text-xs">Rank: <span className="text-white/70 uppercase">{realRank}</span></div>
+                )}
               </div>
-            </div>
-          ))}
-        </div>
-        <div className="border border-white/15 rounded-xl p-3 bg-white/5 lg:col-span-2">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-white/90 font-semibold">{(realSci || selected) || 'Details'}{realAuth ? ` ${realAuth}` : ''}</div>
-            {selected && <span className="text-white/60 text-xs border border-white/20 rounded px-2 py-0.5">Rank: {realRank || 'species'}</span>}
-          </div>
+                  </div>
+                  </div>
           {!selected && (
-            <div className="text-white/70 text-sm">Select a species to view description, images, references, and mock analytics.</div>
+            <div className="text-white/70 text-sm">Select a species to view taxonomic information, distribution, and images.</div>
           )}
           {selected && (
-            <div>
-              {lineageObj && (
-                <div className="text-white/70 text-xs mb-2">
-                  Lineage: {lineageObj.parts.map((p, i) => (
-                    <button key={i} className="underline underline-offset-2 hover:text-white/90 mr-1" onClick={()=>{ setSelected(null); setPath(['Animalia']); setQuery(p); }}>
-                      {p}
-                    </button>
-                  )).reduce((prev: any, curr: any) => prev===null ? [curr] : [...prev, '›', curr], null)}
+                <div>
+              {/* Always show lineage if available - it's a core part of the data */}
+              {lineageObj && lineageObj.length > 0 ? (
+                <div className="mb-4">
+                  <div className="text-white/80 text-sm mb-4 font-semibold">Taxonomic Lineage</div>
+                  <div className="relative">
+                    {lineageObj.map((item, i) => {
+                      const isLast = i === lineageObj.length - 1;
+                      return (
+                        <div key={`${item.key || i}`} className="relative mb-1">
+                          {/* Vertical connecting line */}
+                          {!isLast && (
+                            <div 
+                              className="absolute left-4 top-10 w-0.5 h-6 bg-gradient-to-b from-white/40 to-white/20"
+                              style={{ marginLeft: '8px' }}
+                            />
+                          )}
+                          {/* Node container */}
+                          <div className="relative flex items-start pl-8">
+                            {/* Connection point circle */}
+                            <div className="absolute left-0 top-2.5 w-2 h-2 rounded-full bg-marine-cyan/60 border-2 border-white/30 z-10" />
+                            {/* Horizontal line from circle to node */}
+                            <div className="absolute left-2 top-3 w-4 h-0.5 bg-white/30" />
+                            
+                            {/* Non-clickable node */}
+                            <div
+                              className="group relative z-10 flex-1 flex items-center gap-3 px-4 py-2.5 rounded-lg bg-white/5 border border-white/20 transition-all text-left"
+                              title={`${item.rank}${item.key ? ` (Key: ${item.key})` : ''}`}
+                            >
+                              <div className="flex-1 flex flex-col">
+                                <span className="text-white/50 text-[10px] uppercase tracking-wider font-semibold mb-0.5">{item.rank}</span>
+                                <span className="text-white/90 text-sm font-medium">{item.name}</span>
+                                {item.key && (
+                                  <span className="text-white/40 text-[10px] mt-1 font-mono">GBIF Key: {item.key}</span>
+                                )}
+                              </div>
+                              {/* Highlight for last item (current species) */}
+                              {isLast && (
+                                <div className="px-2 py-1 rounded bg-marine-cyan/20 border border-marine-cyan/30">
+                                  <span className="text-marine-cyan text-xs font-semibold">Current</span>
+                                </div>
+                              )}
+                            </div>
+              </div>
                 </div>
+                      );
+                    })}
+              </div>
+                </div>
+              ) : (
+                <div className="text-white/50 text-xs mb-3 italic">Lineage information not available</div>
               )}
-              <div className="flex flex-wrap gap-2 mb-3">
-                {((realCommon.length && realCommon) || mockDetails[selected]?.common || ['Common name unknown']).map(c => (<span key={c} className="px-2 py-1 rounded border border-white/20 text-white/80 text-xs">{c}</span>))}
-                <span className="px-2 py-1 rounded border border-white/20 text-white/80 text-xs">IUCN: {mockDetails[selected]?.iucn || '—'}</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <div className="text-white/80 text-sm mb-1">Habitats</div>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {(mockDetails[selected]?.habitats || ['Pelagic']).map(h => (<span key={h} className="px-2 py-1 rounded bg-white/5 border border-white/15 text-white/80 text-xs">{h}</span>))}
-                  </div>
-                  <div className="text-white/80 text-sm mb-1">Size (cm)</div>
-                  <div className="text-white/70 text-sm">{mockDetails[selected]?.lengthCm ? `${mockDetails[selected]!.lengthCm[0]}–${mockDetails[selected]!.lengthCm[1]} cm` : '—'}</div>
-                  <div className="text-white/80 text-sm mt-3 mb-1">Diet</div>
-                  <div className="flex flex-wrap gap-2">
-                    {(mockDetails[selected]?.diet || ['Fish']).map(d => (<span key={d} className="px-2 py-1 rounded bg-white/5 border border-white/15 text-white/80 text-xs">{d}</span>))}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-white/80 text-sm mb-1">Occurrences by region (mock)</div>
-                  <div className="h-40">
-                    <SimpleBarChart data={((realRegions.length && realRegions) || (mockDetails[selected]?.occurrencesByRegion || [])).map(r => ({ x: r.x, y: r.y }))} xLabel="Region" yLabel="Count" rotateLabels />
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3">
-                <div className="text-white/80 text-sm mb-1">References</div>
-                <ul className="list-disc pl-5 text-white/70 text-sm">
-                  {(mockDetails[selected]?.refs || ['IUCN']).map(r => (<li key={r}>{r}</li>))}
-                </ul>
-              </div>
-              <div className="mt-3">
-                <div className="text-white/80 text-sm mb-1">Image gallery (mock)</div>
-                {loadingReal && <div className="text-white/60 text-sm">Loading images...</div>}
-                <div className="grid grid-cols-3 gap-2">
-                  {(realImages.length ? realImages : [0,1,2,3,4,5]).map((src, i) => (
-                    typeof src === 'string'
-                      ? <img key={i} src={src} className="h-20 w-full object-cover rounded border border-white/10" />
-                      : <div key={i} className="h-20 rounded border border-white/10 bg-white/5" />
-                  ))}
-                </div>
-              </div>
+              {loadingReal && (
+                <div className="text-white/60 text-sm mt-3">Loading taxonomic data...</div>
+              )}
             </div>
           )}
           {favorites.length > 0 && (
@@ -3113,6 +3076,66 @@ function TaxonomyModule({ globalSearch }: { globalSearch: string }) {
               <div className="flex flex-wrap gap-2">
                 {favorites.map(f => (<span key={f} className="px-2 py-1 border border-white/20 rounded text-white/80 text-xs">{f}</span>))}
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right column - Species Summary */}
+        <div className="border border-white/15 rounded-xl p-4 bg-white/5 lg:col-span-2">
+          <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/10">
+            <div className="w-1 h-6 bg-gradient-to-b from-marine-cyan to-marine-cyan/50 rounded-full"></div>
+            <h3 className="text-white/90 text-base font-semibold">Species Summary</h3>
+            {selected && (
+              <span className="ml-auto px-2 py-1 rounded-full bg-marine-cyan/10 border border-marine-cyan/30 text-marine-cyan text-[10px] font-medium">
+                AI Generated
+              </span>
+            )}
+          </div>
+          
+          {loadingSummary && (
+            <div className="flex items-center gap-3 py-8">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-marine-cyan border-t-transparent"></div>
+              <div className="text-white/70 text-sm">Generating summary with AI...</div>
+            </div>
+          )}
+          
+          {!loadingSummary && speciesSummary && (
+            <div className="relative">
+              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-marine-cyan/40 via-marine-cyan/20 to-transparent rounded-full"></div>
+              <div className="pl-4 pr-2">
+                <div className="text-white/85 text-sm leading-relaxed whitespace-pre-line space-y-3">
+                  {speciesSummary.split('\n').map((paragraph, idx) => {
+                    if (!paragraph.trim()) return null;
+                    return (
+                      <p key={idx} className="text-white/85 leading-7">
+                        {paragraph.trim()}
+                      </p>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {!loadingSummary && !speciesSummary && selected && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="text-white/50 text-sm italic">No summary available for this species.</div>
+            </div>
+          )}
+          
+          {!selected && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <div className="text-white/50 text-sm">Search for a species to see its AI-generated summary.</div>
             </div>
           )}
         </div>
@@ -3384,14 +3407,7 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
 
 function EDNAModule({ globalSearch }: { globalSearch: string }) {
   const [fasta, setFasta] = useState<string>('');
-  const [results, setResults] = useState<{ 
-    identifier: string; 
-    header: string; 
-    sequence: string;
-    species_name: string; 
-    confidence_score: number; 
-    raw_score: number;
-  }[]>([]);
+  const [results, setResults] = useState<Array<EDNAMatchResponse & { header: string }>>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -3456,41 +3472,23 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
       }
 
       // Process each sequence with the API
-      const apiResults: typeof results = [];
+      const apiResults: Array<EDNAMatchResponse & { header: string }> = [];
       
       for (const entry of entries) {
         if (!entry.seq || entry.seq.length === 0) {
-          apiResults.push({
-            identifier: entry.header || 'unknown',
-            header: entry.header || 'sequence',
-            sequence: entry.seq,
-            species_name: 'Invalid sequence',
-            confidence_score: 0,
-            raw_score: 0,
-          });
+          setError(`Invalid sequence in ${entry.header || 'sequence'}`);
           continue;
         }
 
         try {
           const matchResult = await ednaService.matchSequence(entry.seq);
           apiResults.push({
-            identifier: matchResult.identifier,
+            ...matchResult,
             header: entry.header || 'sequence',
-            sequence: entry.seq,
-            species_name: matchResult.species_name,
-            confidence_score: matchResult.confidence_score,
-            raw_score: matchResult.raw_score,
           });
         } catch (apiError: any) {
-          apiResults.push({
-            identifier: entry.header || 'unknown',
-            header: entry.header || 'sequence',
-            sequence: entry.seq,
-            species_name: `Error: ${apiError.message || 'API request failed'}`,
-            confidence_score: 0,
-            raw_score: 0,
-          });
-      }
+          setError(`Error processing ${entry.header || 'sequence'}: ${apiError.message || 'API request failed'}`);
+        }
       }
 
       setResults(apiResults);
@@ -3512,9 +3510,9 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
   };
 
   const exportCsv = () => {
-    const header = 'identifier,header,species_name,confidence_score,raw_score,sequence_length\n';
+    const header = 'header,raw_sequence,marker_type,sequence_length,top_match_scientificName,top_match_confidence,num_matches,num_reference_sequences\n';
     const rows = results.map(r => 
-      `${r.identifier || ''},${r.header || ''},${r.species_name || ''},${r.confidence_score || 0},${r.raw_score || 0},${r.sequence?.length || 0}`
+      `${r.header || ''},${r.raw_sequence || ''},${r.marker_type || ''},${r.sequence_length || 0},${r.summary?.top_match_scientificName || ''},${r.summary?.confidence || 0},${r.matches?.length || 0},${r.summary?.num_reference_sequences_compared || 0}`
     ).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -3525,12 +3523,15 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
     URL.revokeObjectURL(url);
   };
 
-  // Calculate species distribution from API results
+  // Calculate species distribution from API results (using summary top matches)
   const dist = Object.entries(
     results
-      .filter(r => r.species_name && !r.species_name.toLowerCase().includes('error'))
+      .filter(r => r.summary?.top_match_scientificName)
       .reduce<Record<string, number>>((acc, r) => { 
-        acc[r.species_name] = (acc[r.species_name] || 0) + 1; 
+        const species = r.summary?.top_match_scientificName || '';
+        if (species) {
+          acc[species] = (acc[species] || 0) + 1; 
+        }
         return acc; 
       }, {})
   ).map(([k, v]) => ({ x: k, y: v }));
@@ -3580,48 +3581,85 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
             <div className="text-white/60 text-sm">Processing sequences with API...</div>
           )}
           {results.length > 0 && (
-            <div className="overflow-x-auto">
-            <table className="w-full text-white/80 text-sm">
-              <thead>
-                <tr className="text-white/60">
-                    <th className="text-left py-2">Identifier</th>
-                    <th className="text-left py-2">Header</th>
-                    <th className="text-left py-2">Species Name</th>
-                    <th className="text-left py-2">Confidence (%)</th>
-                    <th className="text-left py-2">Raw Score</th>
-                    <th className="text-left py-2">Length</th>
-                </tr>
-              </thead>
-              <tbody>
-                  {results
-                    .filter(r => 
-                      !globalSearch || 
-                      r.species_name.toLowerCase().includes(globalSearch.toLowerCase()) || 
-                      r.header.toLowerCase().includes(globalSearch.toLowerCase()) ||
-                      r.identifier.toLowerCase().includes(globalSearch.toLowerCase())
-                    )
-                    .map((r, i) => (
-                  <tr key={i} className="border-t border-white/10">
-                        <td className="py-2">{r.identifier || '-'}</td>
-                        <td className="py-2">{r.header || '-'}</td>
-                        <td className={`py-2 ${
-                          r.species_name.toLowerCase().includes('error') 
-                            ? 'text-red-400' 
-                            : 'text-white/90'
-                        }`}>
-                          {r.species_name || '-'}
-                        </td>
-                        <td className="py-2">
-                          {r.confidence_score !== undefined && r.confidence_score !== null
-                            ? `${r.confidence_score.toFixed(2)}%`
-                            : '-'}
-                        </td>
-                        <td className="py-2">{r.raw_score !== undefined ? r.raw_score.toFixed(2) : '-'}</td>
-                        <td className="py-2">{r.sequence?.length || '-'}</td>
-                  </tr>
+            <div className="space-y-4">
+              {results
+                .filter(r => 
+                  !globalSearch || 
+                  r.summary?.top_match_scientificName?.toLowerCase().includes(globalSearch.toLowerCase()) || 
+                  r.header.toLowerCase().includes(globalSearch.toLowerCase()) ||
+                  r.marker_type?.toLowerCase().includes(globalSearch.toLowerCase())
+                )
+                .map((r, i) => (
+                  <div key={i} className="border border-white/15 rounded-lg p-4 bg-white/5">
+                    {/* Summary Section */}
+                    <div className="mb-3 pb-3 border-b border-white/10">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-white/90 font-semibold text-sm">{r.header || `Sequence ${i + 1}`}</div>
+                        <div className="flex items-center gap-2">
+                          {r.marker_type && (
+                            <span className="px-2 py-1 rounded bg-marine-cyan/10 border border-marine-cyan/30 text-marine-cyan text-xs">
+                              {r.marker_type}
+                            </span>
+                          )}
+                          <span className="text-white/50 text-xs">Length: {r.sequence_length || 0} bp</span>
+                        </div>
+                      </div>
+                      {r.summary && (
+                        <div className="grid grid-cols-2 gap-3 mt-2">
+                          <div>
+                            <div className="text-white/60 text-xs mb-1">Top Match</div>
+                            <div className="text-white/90 text-sm font-medium">{r.summary.top_match_scientificName || 'No match'}</div>
+                            <div className="text-white/50 text-xs mt-1">Specimen ID: {r.summary.top_match_specimen_id || '-'}</div>
+                          </div>
+                          <div>
+                            <div className="text-white/60 text-xs mb-1">Confidence</div>
+                            <div className="text-white/90 text-sm font-medium">
+                              {r.summary.confidence !== undefined && r.summary.confidence !== null
+                                ? r.summary.confidence.toFixed(2)
+                                : '-'}
+                            </div>
+                            <div className="text-white/50 text-xs mt-1">
+                              {r.summary.num_reference_sequences_compared || 0} reference sequences compared
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Matches Section */}
+                    {r.matches && r.matches.length > 0 && (
+                      <div>
+                        <div className="text-white/70 text-xs mb-2">All Matches ({r.matches.length})</div>
+                        <div className="max-h-48 overflow-y-auto">
+                          <table className="w-full text-white/70 text-xs">
+                            <thead>
+                              <tr className="text-white/50 border-b border-white/10">
+                                <th className="text-left py-1.5">Specimen ID</th>
+                                <th className="text-left py-1.5">Scientific Name</th>
+                                <th className="text-left py-1.5">Confidence</th>
+                                <th className="text-left py-1.5">Ref. Length</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {r.matches.map((match, idx) => (
+                                <tr key={idx} className="border-b border-white/5">
+                                  <td className="py-1.5 font-mono text-[10px]">{match.specimen_id || '-'}</td>
+                                  <td className="py-1.5">{match.scientificName || '-'}</td>
+                                  <td className="py-1.5">
+                                    {match.confidence !== undefined && match.confidence !== null
+                                      ? match.confidence.toFixed(2)
+                                      : '-'}
+                                  </td>
+                                  <td className="py-1.5">{match.reference_length || '-'} bp</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </tbody>
-            </table>
             </div>
           )}
         </div>

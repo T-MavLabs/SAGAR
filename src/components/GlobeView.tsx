@@ -2987,7 +2987,7 @@ function TaxonomyModule({ globalSearch }: { globalSearch: string }) {
               </button>
         <button onClick={()=>{ setQuery(''); setPath(['Animalia']); setSelected(null); }} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Reset</button>
         <button onClick={()=>setFavorites([])} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Clear favorites</button>
-      </div>
+          </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left column - Taxonomic Lineage (narrower) */}
         <div className="border border-white/15 rounded-xl p-3 bg-white/5 lg:col-span-1">
@@ -2998,22 +2998,22 @@ function TaxonomyModule({ globalSearch }: { globalSearch: string }) {
                 {realAuth && realAuth.trim() && (
                   <span className="text-white/70 font-normal text-sm ml-2">{realAuth}</span>
                 )}
-                </div>
+      </div>
               <div className="flex items-center gap-3 mt-1">
                 {realKey && (
                   <div className="text-white/50 text-xs">GBIF Key: <span className="text-white/70 font-mono">{realKey}</span></div>
                 )}
                 {realRank && (
                   <div className="text-white/50 text-xs">Rank: <span className="text-white/70 uppercase">{realRank}</span></div>
-                )}
+        )}
+      </div>
               </div>
-                  </div>
-                  </div>
+          </div>
           {!selected && (
             <div className="text-white/70 text-sm">Select a species to view taxonomic information, distribution, and images.</div>
           )}
           {selected && (
-                <div>
+            <div>
               {/* Always show lineage if available - it's a core part of the data */}
               {lineageObj && lineageObj.length > 0 ? (
                 <div className="mb-4">
@@ -3048,20 +3048,20 @@ function TaxonomyModule({ globalSearch }: { globalSearch: string }) {
                                 {item.key && (
                                   <span className="text-white/40 text-[10px] mt-1 font-mono">GBIF Key: {item.key}</span>
                                 )}
-                              </div>
+              </div>
                               {/* Highlight for last item (current species) */}
                               {isLast && (
                                 <div className="px-2 py-1 rounded bg-marine-cyan/20 border border-marine-cyan/30">
                                   <span className="text-marine-cyan text-xs font-semibold">Current</span>
-                                </div>
+                  </div>
                               )}
-                            </div>
-              </div>
+                  </div>
                 </div>
+                  </div>
                       );
                     })}
-              </div>
                 </div>
+              </div>
               ) : (
                 <div className="text-white/50 text-xs mb-3 italic">Lineage information not available</div>
               )}
@@ -3090,7 +3090,7 @@ function TaxonomyModule({ globalSearch }: { globalSearch: string }) {
                 AI Generated
               </span>
             )}
-          </div>
+      </div>
           
           {loadingSummary && (
             <div className="flex items-center gap-3 py-8">
@@ -3488,7 +3488,7 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
           });
         } catch (apiError: any) {
           setError(`Error processing ${entry.header || 'sequence'}: ${apiError.message || 'API request failed'}`);
-        }
+      }
       }
 
       setResults(apiResults);
@@ -3582,14 +3582,14 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
           )}
           {results.length > 0 && (
             <div className="space-y-4">
-              {results
-                .filter(r => 
-                  !globalSearch || 
+                  {results
+                    .filter(r => 
+                      !globalSearch || 
                   r.summary?.top_match_scientificName?.toLowerCase().includes(globalSearch.toLowerCase()) || 
-                  r.header.toLowerCase().includes(globalSearch.toLowerCase()) ||
+                      r.header.toLowerCase().includes(globalSearch.toLowerCase()) ||
                   r.marker_type?.toLowerCase().includes(globalSearch.toLowerCase())
-                )
-                .map((r, i) => (
+                    )
+                    .map((r, i) => (
                   <div key={i} className="border border-white/15 rounded-lg p-4 bg-white/5">
                     {/* Summary Section */}
                     <div className="mb-3 pb-3 border-b border-white/10">
@@ -3605,20 +3605,12 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
                         </div>
                       </div>
                       {r.summary && (
-                        <div className="grid grid-cols-2 gap-3 mt-2">
+                        <div className="mt-2">
                           <div>
                             <div className="text-white/60 text-xs mb-1">Top Match</div>
                             <div className="text-white/90 text-sm font-medium">{r.summary.top_match_scientificName || 'No match'}</div>
                             <div className="text-white/50 text-xs mt-1">Specimen ID: {r.summary.top_match_specimen_id || '-'}</div>
-                          </div>
-                          <div>
-                            <div className="text-white/60 text-xs mb-1">Confidence</div>
-                            <div className="text-white/90 text-sm font-medium">
-                              {r.summary.confidence !== undefined && r.summary.confidence !== null
-                                ? r.summary.confidence.toFixed(2)
-                                : '-'}
-                            </div>
-                            <div className="text-white/50 text-xs mt-1">
+                            <div className="text-white/50 text-xs mt-2">
                               {r.summary.num_reference_sequences_compared || 0} reference sequences compared
                             </div>
                           </div>
@@ -3636,7 +3628,6 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
                               <tr className="text-white/50 border-b border-white/10">
                                 <th className="text-left py-1.5">Specimen ID</th>
                                 <th className="text-left py-1.5">Scientific Name</th>
-                                <th className="text-left py-1.5">Confidence</th>
                                 <th className="text-left py-1.5">Ref. Length</th>
                               </tr>
                             </thead>
@@ -3645,16 +3636,11 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
                                 <tr key={idx} className="border-b border-white/5">
                                   <td className="py-1.5 font-mono text-[10px]">{match.specimen_id || '-'}</td>
                                   <td className="py-1.5">{match.scientificName || '-'}</td>
-                                  <td className="py-1.5">
-                                    {match.confidence !== undefined && match.confidence !== null
-                                      ? match.confidence.toFixed(2)
-                                      : '-'}
-                                  </td>
                                   <td className="py-1.5">{match.reference_length || '-'} bp</td>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                ))}
+              </tbody>
+            </table>
                         </div>
                       </div>
                     )}

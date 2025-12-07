@@ -390,6 +390,7 @@ function App() {
             <APIDocumentation 
               onBack={() => setCurrentView('dashboard')} 
               onLogout={handleLogout}
+              onNavigateToDataSources={() => setCurrentView('data-sources')}
             />
           </motion.div>
         ) : currentView === 'data-sources' ? (

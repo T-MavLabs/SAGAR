@@ -5,9 +5,10 @@ import { FiHome, FiDatabase, FiDollarSign, FiLogOut, FiCode, FiSearch, FiBarChar
 interface APIDocumentationProps {
   onBack: () => void;
   onLogout?: () => void;
+  onNavigateToDataSources?: () => void;
 }
 
-const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack, onLogout }) => {
+const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack, onLogout, onNavigateToDataSources }) => {
   const [activeTab, setActiveTab] = useState<'occurrences' | 'taxonomy' | 'edna'>('occurrences');
   
   // Mock data
@@ -148,7 +149,7 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack, onLogout })
             <nav className="hidden md:flex items-center space-x-8">
               {[
                 { name: 'Home', icon: FiHome, href: '#', onClick: onBack, isExternal: false },
-                { name: 'Data Sources', icon: FiDatabase, href: 'https://sagar-data-ingestion.vercel.app/', onClick: undefined, isExternal: true },
+                { name: 'Data Sources', icon: FiDatabase, href: '#', onClick: onNavigateToDataSources || onBack, isExternal: false },
                 { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: undefined, isExternal: false, active: true }
               ].map((item, index) => (
                 item.isExternal ? (

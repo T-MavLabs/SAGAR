@@ -48,7 +48,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   const [analysisSteps, setAnalysisSteps] = useState<string[]>([]);
   const [insight, setInsight] = useState<string | null>(null);
   const [selectedDataTypes, setSelectedDataTypes] = useState<DataType[]>([]); // Empty = auto-detect
-  const [activeMode, setActiveMode] = useState<'Analyse' | 'Visualise' | 'Study'>('Analyse');
+  const [activeMode, setActiveMode] = useState<'Analyse' | 'Study'>('Analyse'); // 'Visualise' commented out for now
   const [globeFocused, setGlobeFocused] = useState<boolean>(false);
   const [resetCamera, setResetCamera] = useState<(() => void) | null>(null);
   const [showQueryHistory, setShowQueryHistory] = useState<boolean>(false);
@@ -60,6 +60,8 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   const [notesPanelNotes, setNotesPanelNotes] = useState<any[]>([]);
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
+  const [showNoDataPopup, setShowNoDataPopup] = useState<boolean>(false);
+  const [noDataPopupMessage, setNoDataPopupMessage] = useState<string>('');
   const [selectedPanelNote, setSelectedPanelNote] = useState<any | null>(null);
   const [isCreatingPanelNote, setIsCreatingPanelNote] = useState(false);
   const [panelNoteTitle, setPanelNoteTitle] = useState('');
@@ -279,9 +281,9 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
 
   // Leave globe focus when switching away from Analyse
   useEffect(() => {
-    if (activeMode === 'Visualise') {
-      setGlobeFocused(false);
-    }
+    // if (activeMode === 'Visualise') {
+    //   setGlobeFocused(false);
+    // }
   }, [activeMode]);
 
   // Add event listeners for globe hover events
@@ -401,17 +403,134 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
 
   // no-op here; VisualiseView will compute from raw data
 
+  // Validate if query is meaningful
+  const isValidQuery = (query: string): { valid: boolean; reason?: string } => {
+    const trimmed = query.trim();
+    
+    // Check if empty
+    if (!trimmed) {
+      return { valid: false, reason: 'Query cannot be empty' };
+    }
+    
+    // Check minimum length (at least 3 characters)
+    if (trimmed.length < 3) {
+      return { valid: false, reason: 'Query must be at least 3 characters long' };
+    }
+    
+    // Remove all whitespace and check if only special characters remain
+    const withoutSpaces = trimmed.replace(/\s+/g, '');
+    if (withoutSpaces.length === 0) {
+      return { valid: false, reason: 'Query contains only whitespace' };
+    }
+    
+    // Check if query contains only special characters (no letters or numbers)
+    const hasLettersOrNumbers = /[a-zA-Z0-9]/.test(trimmed);
+    if (!hasLettersOrNumbers) {
+      return { valid: false, reason: 'Query must contain letters or numbers' };
+    }
+    
+    // Check if query is only numbers (without meaningful context)
+    const onlyNumbers = /^\d+$/.test(withoutSpaces);
+    if (onlyNumbers && trimmed.length < 5) {
+      return { valid: false, reason: 'Query must contain meaningful text, not just numbers' };
+    }
+    
+    // Check for common useless patterns (repeated characters, keyboard mashing, etc.)
+    const repeatedChars = /(.)\1{4,}/.test(trimmed); // Same character repeated 5+ times
+    if (repeatedChars) {
+      return { valid: false, reason: 'Query contains repeated characters' };
+    }
+    
+    // Check for keyboard mashing patterns (like "asdf", "qwerty", etc.)
+    const keyboardPatterns = [
+      /^[asdf]+$/i,
+      /^[qwerty]+$/i,
+      /^[zxcv]+$/i,
+      /^[hjkl]+$/i,
+      /^[asdfghjkl]+$/i,
+      /^[qwertyuiop]+$/i,
+      /^[zxcvbnm]+$/i,
+    ];
+    if (keyboardPatterns.some(pattern => pattern.test(trimmed))) {
+      return { valid: false, reason: 'Query appears to be random keyboard input' };
+    }
+    
+    // Check if query has at least one word (sequence of letters) that's meaningful
+    const words = trimmed.split(/\s+/).filter(w => /[a-zA-Z]{2,}/.test(w));
+    if (words.length === 0) {
+      return { valid: false, reason: 'Query must contain at least one meaningful word' };
+    }
+    
+    // Check for very short single-word queries that are likely typos
+    if (words.length === 1 && words[0].length < 3) {
+      return { valid: false, reason: 'Query is too short to be meaningful' };
+    }
+    
+    // Check for queries that are mostly special characters (more than 50%)
+    const specialCharCount = (trimmed.match(/[^a-zA-Z0-9\s]/g) || []).length;
+    const totalChars = trimmed.replace(/\s/g, '').length;
+    if (totalChars > 0 && specialCharCount / totalChars > 0.5) {
+      return { valid: false, reason: 'Query contains too many special characters' };
+    }
+    
+    // Check for common test/placeholder words that shouldn't be queries
+    const testWords = ['test', 'testing', 'asdf', 'qwerty', 'sample', 'example', 'demo', 'placeholder'];
+    const lowerQuery = trimmed.toLowerCase();
+    if (testWords.some(word => lowerQuery === word || lowerQuery.startsWith(word + ' ') || lowerQuery.endsWith(' ' + word))) {
+      return { valid: false, reason: 'Query appears to be a test or placeholder' };
+    }
+    
+    return { valid: true };
+  };
+
   const handleAnalyze = async () => {
-    if (!analysisInput.trim()) return;
+    const trimmedInput = analysisInput.trim();
+    if (!trimmedInput) return;
+    
+    // Validate query before processing
+    const validation = isValidQuery(trimmedInput);
+    if (!validation.valid) {
+      setInsight(`Invalid query: ${validation.reason}. Please enter a meaningful question about marine data.`);
+      setAnalysisSteps([
+        'Query validation failed',
+        validation.reason || 'Please enter a valid query',
+        'Try asking about species, locations, depths, or other marine data'
+      ]);
+      return;
+    }
+    
     setIsAnalyzing(true);
     setInsight(null);
     setAnalysisSteps([
-      'Connecting to RAG system...',
-      'Searching relevant occurrences...',
-      'Generating scientific answer...'
+      'Analyzing query relevance...',
+      'Checking if query is related to marine research...',
+      'Validating query context...'
     ]);
     
     try {
+      // Check query relevance using Gemini API
+      const relevanceCheck = await geminiService.checkQueryRelevance(trimmedInput);
+      
+      if (!relevanceCheck.isRelevant) {
+        setIsAnalyzing(false);
+        const reason = relevanceCheck.reason || 'The query does not relate to marine data, oceanography, or marine biology.';
+        setNoDataPopupMessage(`Query is not relevant to marine research: ${reason}`);
+        setShowNoDataPopup(true);
+        setInsight(`Query is not relevant to marine research: ${reason}`);
+        setAnalysisSteps([
+          'Query relevance check failed',
+          relevanceCheck.reason || 'Query is not related to marine research',
+          'Please ask questions about marine species, oceanographic data, or marine research'
+        ]);
+        return;
+      }
+      
+      // Update steps for RAG processing
+      setAnalysisSteps([
+        'Connecting to RAG system...',
+        'Searching relevant occurrences...',
+        'Generating scientific answer...'
+      ]);
       // Extract filters from activeFilters
       let waterBodyFilter = activeFilters.find(f => f.type === 'waterBody');
       const speciesFilter = activeFilters.find(f => f.type === 'species');
@@ -506,16 +625,23 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
       
       const response = await ragService.query(analysisInput.trim(), ragOptions);
       
-      // Save query to history
-      try {
-        await queryHistoryService.saveQuery(
-          analysisInput.trim(),
-          ragOptions,
-          response
-        );
-      } catch (error) {
-        console.error('Failed to save query to history:', error);
-        // Don't block the UI if history save fails
+      // Check if dashboard summary exists - only save to history if it does
+      const hasDashboardSummary = !!(response.dashboard_summary && 
+        (response.dashboard_summary.executive_summary || 
+         (response.dashboard_summary.key_findings && response.dashboard_summary.key_findings.length > 0)));
+      
+      // Save query to history only if dashboard summary exists
+      if (hasDashboardSummary) {
+        try {
+          await queryHistoryService.saveQuery(
+            analysisInput.trim(),
+            ragOptions,
+            response
+          );
+        } catch (error) {
+          console.error('Failed to save query to history:', error);
+          // Don't block the UI if history save fails
+        }
       }
       
       // Update insight with the answer
@@ -599,9 +725,18 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
           dashboardSummary: response.dashboard_summary
         };
         
-        if (onShowSearchResults) {
+        // Only show results if we have a dashboard summary (meaningful data)
+        if (hasDashboardSummary && onShowSearchResults) {
           onShowSearchResults(searchResult);
+        } else {
+          // No dashboard summary - show popup and don't navigate to results
+          setNoDataPopupMessage('The query did not return sufficient data to generate a dashboard. Please try a different query or adjust your search criteria.');
+          setShowNoDataPopup(true);
         }
+      } else {
+        // No occurrences found - show popup
+        setNoDataPopupMessage('No data found for this query. Please try a different query or adjust your search criteria.');
+        setShowNoDataPopup(true);
       }
       
       setAnalysisSteps([
@@ -677,7 +812,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
         </h1>
         <div className="mt-2 flex justify-center">
           <div className="inline-flex bg-white/15 border border-white/25 rounded-xl overflow-hidden backdrop-blur-sm">
-            {(['Analyse', 'Visualise', 'Study'] as const).map((mode, idx) => (
+            {(['Analyse', /* 'Visualise', */ 'Study'] as const).map((mode, idx) => (
               <button
                 key={mode}
                 onClick={() => setActiveMode(mode)}
@@ -1236,10 +1371,71 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
           </motion.div>
         )}
       </div>
-      ) : activeMode === 'Visualise' ? (
+      ) : /* activeMode === 'Visualise' ? (
         <VisualiseView allData={dataPoints} />
-      ) : (
+      ) : */ (
         <StudyView selectedProject={selectedProject} />
+      )}
+
+      {/* No Data Popup */}
+      {showNoDataPopup && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => {
+            setShowNoDataPopup(false);
+            setNoDataPopupMessage('');
+          }}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 rounded-full bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center">
+                  <FiDatabase className="w-6 h-6 text-yellow-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">No Data Found</h3>
+                  <p className="text-sm text-gray-400">Unable to generate dashboard</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowNoDataPopup(false);
+                  setNoDataPopupMessage('');
+                }}
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-300 text-sm leading-relaxed">
+                {noDataPopupMessage || 'The query did not return sufficient data to generate a dashboard. Please try a different query or adjust your search criteria.'}
+              </p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setShowNoDataPopup(false);
+                  setNoDataPopupMessage('');
+                }}
+                className="px-4 py-2 bg-marine-cyan/80 hover:bg-marine-cyan text-marine-blue font-semibold rounded-xl transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Query History Panel */}

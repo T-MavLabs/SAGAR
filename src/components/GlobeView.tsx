@@ -14,6 +14,7 @@ import queryHistoryService from '../services/queryHistoryService';
 import studyNotesService from '../services/studyNotesService';
 import taxonomyService, { LineageItem } from '../services/taxonomyService';
 import geminiService from '../services/geminiService';
+import speciesIdentificationService, { SpeciesIdentificationResponse } from '../services/speciesIdentificationService';
 
 interface GlobeViewProps {
   selectedProject: Project | null;
@@ -2516,6 +2517,337 @@ function DepthDistributionChart({ data }: { data: DataPoint[] }) {
   );
 }
 
+function SpeciesIdentificationModule({ globalSearch }: { globalSearch: string }) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [result, setResult] = useState<SpeciesIdentificationResponse | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Cleanup preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Cleanup previous preview URL
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      
+      setSelectedFile(file);
+      setResult(null);
+      setError(null);
+      
+      // Create preview URL
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
+  const handleIdentify = async () => {
+    if (!selectedFile) {
+      setError('Please select an image file first');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const identificationResult = await speciesIdentificationService.identify(selectedFile);
+      setResult(identificationResult);
+    } catch (err: any) {
+      setError(err.message || 'Failed to identify species');
+      console.error('Species identification error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClear = () => {
+    setSelectedFile(null);
+    setResult(null);
+    setError(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-start gap-4 mb-4">
+        <div className="flex-1 min-w-[300px]">
+          <label className="block mb-2 text-white/80 text-sm">Choose Image File</label>
+          <input 
+            type="file" 
+            accept="image/*" 
+            onChange={handleFileSelect}
+            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-marine-cyan/20 file:text-marine-cyan file:cursor-pointer hover:file:bg-marine-cyan/30"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <button 
+            onClick={handleIdentify} 
+            disabled={loading || !selectedFile}
+            className="px-4 py-2 bg-marine-cyan/20 border border-marine-cyan/40 rounded-xl text-marine-cyan text-sm font-semibold disabled:opacity-60 hover:bg-marine-cyan/30 transition-colors"
+          >
+            {loading ? 'Identifying...' : 'Identify Species'}
+          </button>
+          {selectedFile && (
+            <button 
+              onClick={handleClear}
+              className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm hover:bg-white/20 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      {previewUrl && (
+        <div className="mb-4">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <h3 className="text-white font-semibold mb-2">Image Preview</h3>
+            <img 
+              src={previewUrl} 
+              alt="Preview" 
+              className="max-w-full max-h-64 rounded-lg border border-white/20"
+            />
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+          <div className="text-red-400 text-sm font-semibold mb-1">Error</div>
+          <div className="text-red-300 text-sm">{error}</div>
+        </div>
+      )}
+
+      {result && (
+        <div className="space-y-4">
+          {/* Main Identification Result */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-1">{result.scientificName}</h2>
+                {result.commonName && (
+                  <p className="text-marine-cyan text-lg">{result.commonName}</p>
+                )}
+              </div>
+              <div className="text-right">
+                <div className="text-white/60 text-sm mb-1">Confidence</div>
+                <div className="text-2xl font-bold text-marine-cyan">{(result.confidence * 100).toFixed(1)}%</div>
+                <div className="text-white/60 text-sm mt-1">Rank: {result.rank}</div>
+              </div>
+            </div>
+
+            {/* Taxonomic Lineage */}
+            {result.taxonomicLineage && result.taxonomicLineage.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <h3 className="text-white font-semibold mb-2">Taxonomic Lineage</h3>
+                <div className="flex flex-wrap gap-2">
+                  {result.taxonomicLineage.map((item, idx) => (
+                    <span key={idx} className="px-3 py-1 bg-white/10 border border-white/20 rounded-lg text-white text-sm">
+                      <span className="text-white/60">{item.rank}:</span> {item.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Morphology */}
+          {result.morphology && (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Morphology</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {result.morphology.diagnosticFeatures && result.morphology.diagnosticFeatures.length > 0 && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Diagnostic Features</h4>
+                    <ul className="list-disc list-inside text-white/80 text-sm space-y-1">
+                      {result.morphology.diagnosticFeatures.map((feature, idx) => (
+                        <li key={idx}>{feature}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {result.morphology.averageSizeCm && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Average Size</h4>
+                    <p className="text-white/80 text-sm">
+                      {result.morphology.averageSizeCm.min} - {result.morphology.averageSizeCm.max} cm
+                    </p>
+                  </div>
+                )}
+                {result.morphology.coloration && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Coloration</h4>
+                    <p className="text-white/80 text-sm">{result.morphology.coloration}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Habitat & Ecology */}
+          {result.habitatEcology && (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Habitat & Ecology</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {result.habitatEcology.environment && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Environment</h4>
+                    <p className="text-white/80 text-sm">{result.habitatEcology.environment}</p>
+                  </div>
+                )}
+                {result.habitatEcology.typicalDepthM && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Typical Depth</h4>
+                    <p className="text-white/80 text-sm">
+                      {result.habitatEcology.typicalDepthM.min} - {result.habitatEcology.typicalDepthM.max} m
+                    </p>
+                  </div>
+                )}
+                {result.habitatEcology.geographicDistribution && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Geographic Distribution</h4>
+                    <p className="text-white/80 text-sm">{result.habitatEcology.geographicDistribution}</p>
+                  </div>
+                )}
+                {result.habitatEcology.ecologicalRole && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Ecological Role</h4>
+                    <p className="text-white/80 text-sm">{result.habitatEcology.ecologicalRole}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Conservation */}
+          {result.conservation && (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Conservation</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {result.conservation.iucnStatus && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">IUCN Status</h4>
+                    <p className="text-white/80 text-sm">{result.conservation.iucnStatus}</p>
+                  </div>
+                )}
+                {result.conservation.majorThreats && result.conservation.majorThreats.length > 0 && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Major Threats</h4>
+                    <ul className="list-disc list-inside text-white/80 text-sm space-y-1">
+                      {result.conservation.majorThreats.map((threat, idx) => (
+                        <li key={idx}>{threat}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {result.conservation.managementNotes && (
+                  <div className="md:col-span-2">
+                    <h4 className="text-marine-cyan font-semibold mb-2">Management Notes</h4>
+                    <p className="text-white/80 text-sm">{result.conservation.managementNotes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Usage & Importance */}
+          {result.usageAndImportance && (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Usage & Importance</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {result.usageAndImportance.fisheries && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Fisheries</h4>
+                    <p className="text-white/80 text-sm">{result.usageAndImportance.fisheries}</p>
+                  </div>
+                )}
+                {result.usageAndImportance.researchImportance && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Research Importance</h4>
+                    <p className="text-white/80 text-sm">{result.usageAndImportance.researchImportance}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Image Analysis Notes */}
+          {result.imageAnalysisNotes && (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Image Analysis</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {result.imageAnalysisNotes.visibleFeaturesUsedForID && result.imageAnalysisNotes.visibleFeaturesUsedForID.length > 0 && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Visible Features Used for ID</h4>
+                    <ul className="list-disc list-inside text-white/80 text-sm space-y-1">
+                      {result.imageAnalysisNotes.visibleFeaturesUsedForID.map((feature, idx) => (
+                        <li key={idx}>{feature}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {result.imageAnalysisNotes.imageQualityIssues && result.imageAnalysisNotes.imageQualityIssues.length > 0 && (
+                  <div>
+                    <h4 className="text-marine-cyan font-semibold mb-2">Image Quality Issues</h4>
+                    <ul className="list-disc list-inside text-white/80 text-sm space-y-1">
+                      {result.imageAnalysisNotes.imageQualityIssues.map((issue, idx) => (
+                        <li key={idx}>{issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Data Provenance */}
+          {result.dataProvenance && (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Data Provenance</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                {result.dataProvenance.modelVersion && (
+                  <div>
+                    <span className="text-marine-cyan font-semibold">Model Version: </span>
+                    <span className="text-white/80">{result.dataProvenance.modelVersion}</span>
+                  </div>
+                )}
+                {result.dataProvenance.inferenceTimestamp && (
+                  <div>
+                    <span className="text-marine-cyan font-semibold">Inference Timestamp: </span>
+                    <span className="text-white/80">{result.dataProvenance.inferenceTimestamp}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!selectedFile && !result && (
+        <div className="text-center py-12 text-white/60">
+          <p className="text-lg mb-2">Upload an image to identify the species</p>
+          <p className="text-sm">Supported formats: JPG, PNG, and other image formats</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NotesModule({ selectedProject }: { selectedProject: Project | null }) {
   const [notes, setNotes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -2836,7 +3168,7 @@ function Lineage({ name }: { name: string }) {
 }
 
 function StudyView({ selectedProject }: { selectedProject: Project | null }) {
-  const [tab, setTab] = useState<'Taxonomy' | 'Otolith' | 'eDNA' | 'Notes'>('Taxonomy');
+  const [tab, setTab] = useState<'Taxonomy' | 'Otolith' | 'eDNA' | 'Species identification' | 'Notes'>('Taxonomy');
   const [search, setSearch] = useState('');
   return (
     <div className="pt-20 min-h-screen relative">
@@ -2847,7 +3179,7 @@ function StudyView({ selectedProject }: { selectedProject: Project | null }) {
       </Suspense>
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
         <div className="flex flex-wrap items-center gap-3 mb-4">
-          {(['Taxonomy','Otolith','eDNA','Notes'] as const).map(name => (
+          {(['Taxonomy','Otolith','eDNA','Species identification','Notes'] as const).map(name => (
             <button key={name} onClick={() => setTab(name)} className={`px-4 py-2 rounded-xl border text-sm ${tab===name ? 'border-white/40 bg-white/10 text-white' : 'border-white/20 text-white/80 hover:bg-white/10'}`}>{name}</button>
           ))}
           <div className="flex-1" />
@@ -2856,6 +3188,7 @@ function StudyView({ selectedProject }: { selectedProject: Project | null }) {
           {tab === 'Taxonomy' && <TaxonomyModule globalSearch={search} />}
           {tab === 'Otolith' && <OtolithModule globalSearch={search} />}
           {tab === 'eDNA' && <EDNAModule globalSearch={search} />}
+          {tab === 'Species identification' && <SpeciesIdentificationModule globalSearch={search} />}
           {tab === 'Notes' && <NotesModule selectedProject={selectedProject} />}
         </div>
       </div>

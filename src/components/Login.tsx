@@ -30,8 +30,12 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     // Simulate a brief loading state for better UX
     await new Promise(resolve => setTimeout(resolve, 300));
 
+    // Get credentials from environment variables with fallback defaults
+    const validUsername = process.env.REACT_APP_LOGIN_USERNAME || 'CBSIR';
+    const validPassword = process.env.REACT_APP_LOGIN_PASSWORD || 'LORD_CBSIR';
+
     // Check credentials
-    if (username === 'CBSIR' && password === 'LORD_CBSIR') {
+    if (username === validUsername && password === validPassword) {
       // Store authentication state
       localStorage.setItem('sagar:authenticated', 'true');
       localStorage.setItem('sagar:username', username);

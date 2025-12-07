@@ -241,16 +241,24 @@ Four scientist-oriented modules with consistent grey glass UI:
    ```
 
 3. **Configure environment variables** (if needed)
-   Create a `.env` file:
+   Create a `.env` file in the root directory (copy from `.env.example`):
    ```env
    REACT_APP_RAG_API_URL=http://localhost:8000
    REACT_APP_SUPABASE_URL=your-supabase-url
    REACT_APP_SUPABASE_ANON_KEY=your-supabase-anon-key
    REACT_APP_OTOLITH_API_URL=https://chinmay0805-37-otolith-classifier.hf.space
    REACT_APP_EDNA_API_URL=https://sagar-e-dna.vercel.app
+   REACT_APP_SPECIES_ID_API_URL=https://chinmay0805-specie-identification.hf.space
+   REACT_APP_TAXONOMY_API_URL=https://taxa-2.vercel.app
+   
+   # Login Credentials
+   REACT_APP_LOGIN_USERNAME=CBSIR
+   REACT_APP_LOGIN_PASSWORD=LORD_CBSIR
    ```
    
-   **Note**: The Otolith and eDNA API URLs have defaults and don't need to be configured unless using custom endpoints.
+   **Note**: 
+   - The Otolith, eDNA, Species ID, and Taxonomy API URLs have defaults and don't need to be configured unless using custom endpoints.
+   - Login credentials default to `CBSIR` / `CBSIR` if not specified in the `.env` file.
 
 4. **Start the development server**
    ```bash

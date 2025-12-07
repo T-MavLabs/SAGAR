@@ -9,6 +9,7 @@ import SearchResultsView, { SearchResultSummary } from './components/SearchResul
 import APIDocumentation from './components/APIDocumentation';
 import DataSourcePage from './components/DataSourcePage';
 import VesselLogin from './components/VesselLogin';
+import Login from './components/Login';
 import './App.css';
 
 export interface Project {
@@ -35,6 +36,11 @@ export interface DataPoint {
 }
 
 function App() {
+  // Check authentication status
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('sagar:authenticated') === 'true';
+  });
+
   // Initialize view based on current URL
   const getInitialView = () => {
     const path = window.location.pathname;
@@ -51,6 +57,20 @@ function App() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showLoader, setShowLoader] = React.useState(false);
   const [searchResult, setSearchResult] = React.useState<SearchResultSummary | null>(null);
+
+  // Handle successful login
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    setCurrentView('landing');
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('sagar:authenticated');
+    localStorage.removeItem('sagar:username');
+    setIsAuthenticated(false);
+    setCurrentView('landing');
+  };
 
   // Function to load project from database
   const loadProjectFromDatabase = async (projectId: string) => {
@@ -269,6 +289,15 @@ function App() {
 
   console.log('App: Current view:', currentView, 'Selected project:', selectedProject?.title);
 
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-marine-blue text-white">
+        <Login onLoginSuccess={handleLoginSuccess} />
+      </div>
+    );
+  }
+
   const rootBgClass = currentView === 'search' ? 'bg-black' : 'bg-marine-blue';
   return (
     <div className={`min-h-screen ${rootBgClass} text-white`}>
@@ -299,7 +328,7 @@ function App() {
               onProjectSelect={handleProjectSelect} 
               onNavigateToAPI={() => setCurrentView('api-docs')} 
               onNavigateToDataSources={() => setCurrentView('data-sources')}
-              onLogout={() => setCurrentView('landing')}
+              onLogout={handleLogout}
             />
           </motion.div>
         ) : currentView === 'search' ? (
@@ -360,7 +389,7 @@ function App() {
           >
             <APIDocumentation 
               onBack={() => setCurrentView('dashboard')} 
-              onLogout={() => setCurrentView('landing')}
+              onLogout={handleLogout}
             />
           </motion.div>
         ) : currentView === 'data-sources' ? (
@@ -373,7 +402,7 @@ function App() {
           >
             <DataSourcePage 
               onBack={() => setCurrentView('dashboard')} 
-              onLogout={() => setCurrentView('landing')}
+              onLogout={handleLogout}
             />
           </motion.div>
         ) : currentView === 'vessel-login' ? (

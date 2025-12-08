@@ -195,20 +195,26 @@ function MigrationPath({ dataPoints }) {
     return points;
   }, [dataPoints]);
   
-  // Animate path drawing
+  // Animate path drawing continuously
   React.useEffect(() => {
     setAnimationProgress(0);
     const duration = 2000; // 2 seconds
-    const startTime = Date.now();
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+    let animationFrameId;
+    const animate = (startTime) => {
+      const now = Date.now();
+      const elapsed = (now - startTime) % duration;
+      const progress = elapsed / duration;
       setAnimationProgress(progress);
-      if (progress < 1) {
-        requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(() => animate(startTime));
+    };
+    const startTime = Date.now();
+    animationFrameId = requestAnimationFrame(() => animate(startTime));
+    
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
       }
     };
-    animate();
   }, [dataPoints]);
   
   // Create line segments connecting consecutive points

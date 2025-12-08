@@ -2780,32 +2780,34 @@ function SpeciesIdentificationModule({ globalSearch }: { globalSearch: string })
 
   return (
     <div>
-      <div className="flex flex-wrap items-start gap-4 mb-4">
-        <div className="flex-1 min-w-[300px]">
-          <label className="block mb-2 text-white/80 text-sm">Choose Image File</label>
-          <input 
-            type="file" 
-            accept="image/*" 
-            onChange={handleFileSelect}
-            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-marine-cyan/20 file:text-marine-cyan file:cursor-pointer hover:file:bg-marine-cyan/30"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <button 
-            onClick={handleIdentify} 
-            disabled={loading || !selectedFile}
-            className="px-4 py-2 bg-marine-cyan/20 border border-marine-cyan/40 rounded-xl text-marine-cyan text-sm font-semibold disabled:opacity-60 hover:bg-marine-cyan/30 transition-colors"
-          >
-            {loading ? 'Identifying...' : 'Identify Species'}
-          </button>
-          {selectedFile && (
+      <div className="mb-4">
+        <label className="block mb-2 text-white/80 text-sm">Choose Image File</label>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex-1 min-w-[300px]">
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileSelect}
+              className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-marine-cyan/20 file:text-marine-cyan file:cursor-pointer hover:file:bg-marine-cyan/30"
+            />
+          </div>
+          <div className="flex items-center gap-2">
             <button 
-              onClick={handleClear}
-              className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm hover:bg-white/20 transition-colors"
+              onClick={handleIdentify} 
+              disabled={loading || !selectedFile}
+              className="px-4 py-2 bg-marine-cyan/20 border border-marine-cyan/40 rounded-xl text-marine-cyan text-sm font-semibold disabled:opacity-60 hover:bg-marine-cyan/30 transition-colors whitespace-nowrap"
             >
-              Clear
+              {loading ? 'Identifying...' : 'Identify Species'}
             </button>
-          )}
+            {selectedFile && (
+              <button 
+                onClick={handleClear}
+                className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm hover:bg-white/20 transition-colors whitespace-nowrap"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -3727,6 +3729,9 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
   const [annotate, setAnnotate] = useState<boolean>(false);
   const [edgeView, setEdgeView] = useState<boolean>(false);
   const [clicks, setClicks] = useState<{ x: number; y: number }[]>([]);
+  const [isDrawing, setIsDrawing] = useState<boolean>(false);
+  const [currentPath, setCurrentPath] = useState<{ x: number; y: number }[]>([]);
+  const [allPaths, setAllPaths] = useState<{ x: number; y: number }[][]>([]);
   const onUpload = (files: FileList | null) => {
     if (!files) return;
     const arr = Array.from(files);
@@ -3736,8 +3741,6 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
       const url = URL.createObjectURL(f);
       newImages.push(url);
       newFiles.push(f);
-      // mock morphometrics
-      setMeasurements(prev => [...prev, { file: f.name, lengthMm: 3 + Math.random()*7, widthMm: 1 + Math.random()*3 }]);
     });
     setImages(prev => [...prev, ...newImages]);
     setImageFiles(prev => [...prev, ...newFiles]);
@@ -3752,6 +3755,107 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
     const a = document.createElement('a');
     a.href = url; a.download = 'otolith_measurements.csv'; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const clearAnnotations = () => {
+    setAllPaths([]);
+    setCurrentPath([]);
+    setMeasurements([]);
+    setIsDrawing(false);
+  };
+
+  const downloadAnnotatedImage = async () => {
+    if (activeIdx < 0 || !images[activeIdx] || allPaths.length === 0) return;
+    
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => {
+      // Get the viewer container and image element
+      const viewerContainer = document.querySelector('[data-viewer-container]') as HTMLElement;
+      const viewerImg = viewerContainer?.querySelector('img') as HTMLImageElement;
+      
+      if (!viewerContainer || !viewerImg) {
+        console.error('Could not find viewer elements');
+        return;
+      }
+      
+      const containerRect = viewerContainer.getBoundingClientRect();
+      const imgRect = viewerImg.getBoundingClientRect();
+      
+      // Calculate scaling - image is displayed with object-contain
+      const displayedWidth = imgRect.width;
+      const displayedHeight = imgRect.height;
+      const actualWidth = img.width;
+      const actualHeight = img.height;
+      
+      const scaleX = actualWidth / displayedWidth;
+      const scaleY = actualHeight / displayedHeight;
+      
+      // Calculate offset (image might be centered)
+      const offsetX = imgRect.left - containerRect.left;
+      const offsetY = imgRect.top - containerRect.top;
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = actualWidth;
+      canvas.height = actualHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      // Draw the image
+      ctx.drawImage(img, 0, 0);
+      
+      // Apply edge view filter if enabled
+      if (edgeView) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const gray = (r + g + b) / 3;
+          data[i] = Math.min(255, gray * 1.5);
+          data[i + 1] = Math.min(255, gray * 1.5);
+          data[i + 2] = Math.min(255, gray * 1.5);
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
+      
+      // Draw all annotation paths
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = Math.max(2, 2 * Math.max(scaleX, scaleY));
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      allPaths.forEach(path => {
+        if (path.length < 2) return;
+        ctx.beginPath();
+        // Convert display coordinates to image coordinates
+        const startX = (path[0].x - offsetX) * scaleX;
+        const startY = (path[0].y - offsetY) * scaleY;
+        ctx.moveTo(startX, startY);
+        for (let i = 1; i < path.length; i++) {
+          const x = (path[i].x - offsetX) * scaleX;
+          const y = (path[i].y - offsetY) * scaleY;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+      
+      // Convert canvas to blob and download
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const fileName = imageFiles[activeIdx]?.name || `otolith_annotated_${activeIdx + 1}.png`;
+        a.href = url;
+        a.download = fileName.replace(/\.[^/.]+$/, '') + '_annotated.png';
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    };
+    
+    img.src = images[activeIdx];
   };
 
   const handleRunAIGuess = async () => {
@@ -3828,6 +3932,12 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
         <input type="number" step={0.1} value={scale} onChange={(e)=>setScale(Number(e.target.value)||1)} className="w-24 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
         <button onClick={()=>setAnnotate(a=>!a)} className={`px-3 py-2 rounded-xl text-white text-sm border ${annotate ? 'bg-white/20 border-white/40' : 'bg-white/10 border-white/20'}`}>{annotate ? 'Annotate: ON' : 'Annotate: OFF'}</button>
         <button onClick={()=>setEdgeView(v=>!v)} className={`px-3 py-2 rounded-xl text-white text-sm border ${edgeView ? 'bg-white/20 border-white/40' : 'bg-white/10 border-white/20'}`}>{edgeView ? 'Edge view' : 'Normal view'}</button>
+        {annotate && (
+          <>
+            <button onClick={clearAnnotations} className="px-3 py-2 bg-red-500/20 border border-red-500/40 rounded-xl text-white text-sm hover:bg-red-500/30">Clear Annotations</button>
+            <button onClick={downloadAnnotatedImage} disabled={activeIdx < 0 || allPaths.length === 0} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed">Download Annotated</button>
+          </>
+        )}
         <button onClick={exportCsv} className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm">Export CSV</button>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -3840,35 +3950,86 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
         <div className="border border-white/15 rounded-xl p-3 bg-white/5 lg:col-span-2">
           <div className="text-white/90 font-semibold mb-2">Viewer</div>
           {activeIdx >= 0 ? (
-            <div className="relative w-full h-[320px] rounded-xl overflow-hidden border border-white/10">
+            <div className="relative w-full h-[320px] rounded-xl overflow-hidden border border-white/10" data-viewer-container>
               <img src={images[activeIdx]} className={`absolute inset-0 w-full h-full object-contain ${edgeView ? 'filter contrast-150 brightness-110 saturate-0' : ''}`} />
               {annotate && (
                 <div
-                  className="absolute inset-0"
-                  onClick={(e)=>{
+                  className="absolute inset-0 cursor-crosshair"
+                  onMouseDown={(e) => {
                     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                    const x = e.clientX - rect.left; const y = e.clientY - rect.top;
-                    const pts = [...clicks, { x, y }];
-                    if (pts.length === 2) {
-                      const dx = pts[1].x - pts[0].x; const dy = pts[1].y - pts[0].y;
-                      const px = Math.sqrt(dx*dx + dy*dy);
-                      const mm = px / (scale || 1);
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    setIsDrawing(true);
+                    setCurrentPath([{ x, y }]);
+                  }}
+                  onMouseMove={(e) => {
+                    if (!isDrawing) return;
+                    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    setCurrentPath(prev => [...prev, { x, y }]);
+                  }}
+                  onMouseUp={(e) => {
+                    if (!isDrawing) return;
+                    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const finalPath = [...currentPath, { x, y }];
+                    
+                    // Calculate total path length
+                    let totalLength = 0;
+                    for (let i = 1; i < finalPath.length; i++) {
+                      const dx = finalPath[i].x - finalPath[i - 1].x;
+                      const dy = finalPath[i].y - finalPath[i - 1].y;
+                      totalLength += Math.sqrt(dx * dx + dy * dy);
+                    }
+                    const mm = totalLength / (scale || 1);
+                    
+                    // Save measurement if path has meaningful length
+                    if (finalPath.length > 1 && mm > 0) {
                       setMeasurements(prev => {
                         const file = `image_${activeIdx+1}`;
                         return [...prev, { file, lengthMm: mm, widthMm: 0 }];
                       });
-                      setClicks([]);
-                    } else {
-                      setClicks(pts);
+                    }
+                    
+                    // Save the path for display
+                    setAllPaths(prev => [...prev, finalPath]);
+                    setIsDrawing(false);
+                    setCurrentPath([]);
+                  }}
+                  onMouseLeave={() => {
+                    if (isDrawing) {
+                      setIsDrawing(false);
+                      setCurrentPath([]);
                     }
                   }}
                 >
-                  {clicks.map((p, idx)=>(<div key={idx} className="absolute w-2 h-2 bg-marine-cyan rounded-full" style={{ left: p.x-4, top: p.y-4 }} />))}
-                  {clicks.length===2 && (
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                      <line x1={clicks[0].x} y1={clicks[0].y} x2={clicks[1].x} y2={clicks[1].y} stroke="#22d3ee" strokeWidth="2" />
-                    </svg>
-                  )}
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                    {/* Render all completed paths */}
+                    {allPaths.map((path, pathIdx) => (
+                      <polyline
+                        key={pathIdx}
+                        points={path.map(p => `${p.x},${p.y}`).join(' ')}
+                        fill="none"
+                        stroke="#22d3ee"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    ))}
+                    {/* Render current drawing path */}
+                    {currentPath.length > 1 && (
+                      <polyline
+                        points={currentPath.map(p => `${p.x},${p.y}`).join(' ')}
+                        fill="none"
+                        stroke="#22d3ee"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    )}
+                  </svg>
                 </div>
               )}
             </div>
@@ -3877,25 +4038,6 @@ function OtolithModule({ globalSearch }: { globalSearch: string }) {
           )}
         </div>
         <div className="border border-white/15 rounded-xl p-3 bg-white/5">
-          <div className="text-white/90 font-semibold mb-2">Measurements (mock)</div>
-          <table className="w-full text-white/80 text-sm">
-            <thead>
-              <tr className="text-white/60">
-                <th className="text-left py-1">File</th>
-                <th className="text-left py-1">Length (mm)</th>
-                <th className="text-left py-1">Width (mm)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {measurements.filter(m => !globalSearch || m.file.toLowerCase().includes(globalSearch.toLowerCase())).map((m, idx) => (
-                <tr key={idx} className="border-t border-white/10">
-                  <td className="py-1">{m.file}</td>
-                  <td className="py-1">{(m.lengthMm * 1).toFixed(2)}</td>
-                  <td className="py-1">{(m.widthMm * 1).toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
           {aiGuess && (
             <div className="mt-3 p-4 bg-gradient-to-br from-marine-cyan/10 to-blue-600/10 border border-marine-cyan/20 rounded-lg">
               <div className="text-marine-cyan font-semibold text-sm mb-2">AI Prediction</div>
@@ -4052,19 +4194,6 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
     URL.revokeObjectURL(url);
   };
 
-  // Calculate species distribution from API results (using summary top matches)
-  const dist = Object.entries(
-    results
-      .filter(r => r.summary?.top_match_scientificName)
-      .reduce<Record<string, number>>((acc, r) => { 
-        const species = r.summary?.top_match_scientificName || '';
-        if (species) {
-          acc[species] = (acc[species] || 0) + 1; 
-        }
-        return acc; 
-      }, {})
-  ).map(([k, v]) => ({ x: k, y: v }));
-
   return (
     <div>
       <div className="flex flex-wrap items-start gap-3 mb-3">
@@ -4100,8 +4229,8 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
       </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="border border-white/15 rounded-xl p-3 bg-white/5 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4">
+        <div className="border border-white/15 rounded-xl p-3 bg-white/5">
           <div className="text-white/90 font-semibold mb-2">Results</div>
           {!results.length && !loading && (
             <div className="text-white/60 text-sm">Paste FASTA format sequences or upload a file, then click Match sequences.</div>
@@ -4177,18 +4306,6 @@ function EDNAModule({ globalSearch }: { globalSearch: string }) {
                 ))}
             </div>
           )}
-        </div>
-        <div className="border border-white/15 rounded-xl p-3 bg-white/5">
-          <div className="text-white/90 font-semibold mb-2">Species Distribution</div>
-          <div className="h-56">
-            {dist.length > 0 ? (
-              <SimplePie data={dist} />
-            ) : (
-              <div className="text-white/60 text-sm flex items-center justify-center h-full">
-                {results.length > 0 ? 'No species matches found' : 'Run analysis to see distribution'}
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>

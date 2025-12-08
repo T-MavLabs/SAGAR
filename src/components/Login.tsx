@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { FiLock, FiUser, FiLogIn } from 'react-icons/fi';
 import WorldMap from './ui/world-map';
@@ -6,6 +6,9 @@ import WorldMap from './ui/world-map';
 interface LoginProps {
   onLoginSuccess: () => void;
 }
+
+// Memoized WorldMap to prevent re-renders
+const MemoizedWorldMap = React.memo(WorldMap);
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState('');
@@ -22,25 +25,25 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-
-    // Simulate a brief loading state for better UX
-    await new Promise(resolve => setTimeout(resolve, 300));
 
     // Get credentials from environment variables with fallback defaults
     const validUsername = process.env.REACT_APP_LOGIN_USERNAME || 'CBSIR';
     const validPassword = process.env.REACT_APP_LOGIN_PASSWORD || 'LORD_CBSIR';
 
-    // Check credentials
+    // Check credentials immediately (no artificial delay)
     if (username === validUsername && password === validPassword) {
       // Store authentication state
       localStorage.setItem('sagar:authenticated', 'true');
       localStorage.setItem('sagar:username', username);
-      setIsLoading(false);
-      onLoginSuccess();
+      // Small delay only for visual feedback
+      setTimeout(() => {
+        setIsLoading(false);
+        onLoginSuccess();
+      }, 100);
     } else {
       setError('Invalid username or password');
       setIsLoading(false);
@@ -50,19 +53,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         passwordRef.current.focus();
       }
     }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSubmit(e as any);
-    }
-  };
+  }, [username, password, onLoginSuccess]);
 
   return (
     <div className="min-h-screen bg-marine-blue text-white overflow-hidden relative">
       <div className="absolute inset-0 opacity-70">
         <div className="h-full w-full">
-          <WorldMap />
+          <MemoizedWorldMap />
         </div>
       </div>
       <div className="relative z-10 flex items-center justify-center min-h-screen px-6 py-12">
@@ -103,7 +100,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                       setUsername(e.target.value);
                       setError('');
                     }}
-                    onKeyPress={handleKeyPress}
                     className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all"
                     placeholder="Enter your username"
                     required
@@ -130,7 +126,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                       setPassword(e.target.value);
                       setError('');
                     }}
-                    onKeyPress={handleKeyPress}
                     className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all"
                     placeholder="Enter your password"
                     required

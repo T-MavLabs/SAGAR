@@ -17,19 +17,22 @@ export default function WorldMap({
   lineColor = "#0ea5e9",
 }: MapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const map = new DottedMap({ height: 100, grid: "diagonal" });
-
+  
   const prefersDark = useMemo(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }, []);
 
-  const svgMap = map.getSVG({
-    radius: 0.22,
-    color: prefersDark ? "#FFFFFF40" : "#00000040",
-    shape: "circle",
-    backgroundColor: prefersDark ? "black" : "white",
-  });
+  // Memoize the map and SVG generation to prevent expensive recalculations
+  const svgMap = useMemo(() => {
+    const map = new DottedMap({ height: 100, grid: "diagonal" });
+    return map.getSVG({
+      radius: 0.22,
+      color: prefersDark ? "#FFFFFF40" : "#00000040",
+      shape: "circle",
+      backgroundColor: prefersDark ? "black" : "white",
+    });
+  }, [prefersDark]);
 
   const projectPoint = (lat: number, lng: number) => {
     const x = (lng + 180) * (800 / 360);

@@ -57,6 +57,7 @@ function App() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showLoader, setShowLoader] = React.useState(false);
   const [searchResult, setSearchResult] = React.useState<SearchResultSummary | null>(null);
+  const [instantTransition, setInstantTransition] = React.useState(false);
 
   // Handle successful login
   const handleLoginSuccess = () => {
@@ -70,6 +71,18 @@ function App() {
     localStorage.removeItem('sagar:username');
     setIsAuthenticated(false);
     setCurrentView('landing');
+  };
+
+  // Handle navigation to landing page (fast, minimal delays)
+  const handleNavigateToLanding = () => {
+    // Set instant transition flag to skip animations
+    setInstantTransition(true);
+    // Update URL immediately
+    window.history.pushState({}, '', '/');
+    // Update view immediately - no animation delay
+    setCurrentView('landing');
+    // Reset flag after transition completes
+    setTimeout(() => setInstantTransition(false), 50);
   };
 
   // Function to load project from database
@@ -302,18 +315,20 @@ function App() {
   return (
     <div className={`min-h-screen ${rootBgClass} text-white`}>
       <LoaderOverlay visible={showLoader} />
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         {currentView === 'landing' ? (
           <motion.div
             key="landing"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: instantTransition ? 0.1 : 0.3 }}
           >
             <LandingPage 
               onEnter={() => setCurrentView('dashboard')} 
               onVesselLogin={() => setCurrentView('vessel-login')}
+              onLogout={handleLogout}
+              skipAnimations={instantTransition}
             />
           </motion.div>
         ) : currentView === 'dashboard' ? (
@@ -322,13 +337,13 @@ function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: instantTransition ? 0.1 : 0.3 }}
           >
             <Dashboard 
               onProjectSelect={handleProjectSelect} 
               onNavigateToAPI={() => setCurrentView('api-docs')} 
               onNavigateToDataSources={() => setCurrentView('data-sources')}
-              onLogout={handleLogout}
+              onNavigateToLanding={handleNavigateToLanding}
             />
           </motion.div>
         ) : currentView === 'search' ? (

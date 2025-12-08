@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiPlus, FiLogOut, FiHome, FiInfo, FiDatabase, FiDollarSign } from 'react-icons/fi';
+import { FiPlus, FiArrowLeft, FiHome, FiInfo, FiDatabase, FiDollarSign } from 'react-icons/fi';
 import ProjectCard from './ProjectCard';
 import { Project } from '../App';
 import { supabase } from '../services/supabaseClient';
@@ -9,10 +9,10 @@ interface DashboardProps {
   onProjectSelect: (project: Project) => void;
   onNavigateToAPI: () => void;
   onNavigateToDataSources: () => void;
-  onLogout?: () => void;
+  onNavigateToLanding?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI, onNavigateToDataSources, onLogout }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI, onNavigateToDataSources, onNavigateToLanding }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -168,7 +168,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
               ))}
             </nav>
 
-            {/* User Info & Logout */}
+            {/* User Info & Back Button */}
             <motion.div 
               className="flex items-center space-x-4"
               initial={{ opacity: 0, x: 20 }}
@@ -176,13 +176,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
               transition={{ duration: 0.5 }}
             >
               <span className="text-sm text-gray-300">Welcome, Dr. Vinu</span>
-              <button 
-                onClick={onLogout}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200"
-              >
-                <FiLogOut className="w-4 h-4" />
-                <span>Logout</span>
-              </button>
+              {onNavigateToLanding && (
+                <button 
+                  onClick={onNavigateToLanding}
+                  className="flex items-center space-x-2 px-4 py-2 bg-marine-cyan/20 hover:bg-marine-cyan/30 border border-marine-cyan/30 rounded-lg transition-colors duration-200 text-white"
+                >
+                  <FiArrowLeft className="w-4 h-4" />
+                  <span>Back</span>
+                </button>
+              )}
             </motion.div>
           </div>
         </div>

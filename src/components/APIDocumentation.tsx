@@ -591,7 +591,7 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack, onLogout, o
                 <div className="mb-8">
                   <h2 className="text-2xl font-bold text-white mb-2">eDNA Sequence Matcher</h2>
                   <p className="text-gray-300">
-                    Analyze environmental DNA sequences using the POST /edna/match endpoint. Submit FASTA sequences, select genetic markers, and visualize species distribution patterns.
+                    Analyze environmental DNA sequences using the GET /edna/match_sequence endpoint. Submit raw DNA sequences and get species identification with confidence scores.
                   </p>
                 </div>
 
@@ -754,22 +754,49 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack, onLogout, o
                 </div>
               </div>
 
-              {/* POST /edna/match */}
+              {/* GET /edna/match_sequence */}
               <div className="bg-gray-900/30 backdrop-blur-sm rounded-xl border border-gray-700 p-6 min-w-0">
-                <h3 className="text-xl font-semibold text-white mb-4 break-words">POST /edna/match</h3>
+                <h3 className="text-xl font-semibold text-white mb-4 break-words">GET /edna/match_sequence</h3>
                 <div className="bg-gray-900 p-4 rounded-lg mb-4">
                   <pre className="text-sm text-marine-cyan break-all whitespace-pre-wrap overflow-wrap-anywhere">
-{`{
-  "sequences": ">Seq1\\nAGTCGATCG...",
-  "marker": "COI",
-  "minIdentity": 0.97
+{`GET /edna/match_sequence?raw_sequence=AGTCGATCG...
+
+Response:
+{
+  "raw_sequence": "AGTCGATCG...",
+  "marker_type": "COI",
+  "sequence_length": 658,
+  "matches": [
+    {
+      "specimen_id": "string",
+      "scientificName": "string",
+      "confidence": 0.95,
+      "reference_length": 658
+    }
+  ],
+  "summary": {
+    "top_match_specimen_id": "string",
+    "top_match_scientificName": "string",
+    "confidence": 0.95,
+    "num_reference_sequences_compared": 1000
+  }
+}
+
+Query Parameters:
+  - raw_sequence: Raw DNA sequence (ACGT format, required)
 }`}
                   </pre>
                 </div>
                 <div className="space-y-2 text-sm text-gray-300">
-                  <div><strong>sequences:</strong> string (FASTA format)</div>
-                  <div><strong>marker:</strong> string (genetic marker)</div>
-                  <div><strong>minIdentity:</strong> float (0.90-1.0)</div>
+                  <div><strong>raw_sequence:</strong> string (Raw DNA sequence in ACGT format, required)</div>
+                  <div className="mt-4"><strong>Response Fields:</strong></div>
+                  <div className="ml-4 space-y-1">
+                    <div><strong>raw_sequence:</strong> The input sequence</div>
+                    <div><strong>marker_type:</strong> Genetic marker type detected</div>
+                    <div><strong>sequence_length:</strong> Length of input sequence</div>
+                    <div><strong>matches:</strong> Array of species matches with confidence scores</div>
+                    <div><strong>summary:</strong> Top match and comparison statistics</div>
+                  </div>
                 </div>
               </div>
             </div>

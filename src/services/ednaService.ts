@@ -1,6 +1,9 @@
 /**
  * Service for interacting with the eDNA Sequence Matcher API
  * Handles eDNA sequence matching and species identification
+ * 
+ * API Endpoint: GET /edna/match_sequence
+ * Base URL: https://sagar-e-dna-2.vercel.app
  */
 
 const EDNA_API_BASE_URL = process.env.REACT_APP_EDNA_API_URL || 'https://sagar-e-dna-2.vercel.app';
@@ -87,9 +90,28 @@ export class EDNAService {
         throw new Error(`API request failed (${response.status}): ${errorMsg}`);
       }
 
-      // Validate response structure
+      // Validate response structure matches expected format
       if (!data.raw_sequence || !data.matches || !data.summary) {
         throw new Error('Invalid API response format: missing required fields');
+      }
+      
+      // Validate summary structure
+      if (!data.summary.top_match_specimen_id || 
+          !data.summary.top_match_scientificName || 
+          typeof data.summary.confidence !== 'number' ||
+          typeof data.summary.num_reference_sequences_compared !== 'number') {
+        throw new Error('Invalid API response format: summary missing required fields');
+      }
+      
+      // Validate matches array structure
+      if (Array.isArray(data.matches)) {
+        for (const match of data.matches) {
+          if (!match.specimen_id || !match.scientificName || 
+              typeof match.confidence !== 'number' ||
+              typeof match.reference_length !== 'number') {
+            throw new Error('Invalid API response format: matches array contains invalid entries');
+          }
+        }
       }
 
       return data as EDNAMatchResponse;

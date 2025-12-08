@@ -208,9 +208,9 @@ Four scientist-oriented modules with consistent grey glass UI:
   - **Otolith Classifier API**: `https://chinmay0805-37-otolith-classifier.hf.space`
     - HuggingFace Space for otolith image classification
     - Endpoint: `/predict`
-  - **eDNA Sequence Matcher API**: `https://sagar-e-dna.vercel.app`
+  - **eDNA Sequence Matcher API**: `https://sagar-e-dna-2.vercel.app`
     - Vercel-hosted API for eDNA sequence matching
-    - Endpoint: `/api/v1/edna/match`
+    - Endpoint: `GET /edna/match_sequence`
 
 ### Data Sources
 - **Supabase Storage**: Parquet files containing Occurrence, CTD, AWS, ADCP data
@@ -247,7 +247,7 @@ Four scientist-oriented modules with consistent grey glass UI:
    REACT_APP_SUPABASE_URL=your-supabase-url
    REACT_APP_SUPABASE_ANON_KEY=your-supabase-anon-key
    REACT_APP_OTOLITH_API_URL=https://chinmay0805-37-otolith-classifier.hf.space
-   REACT_APP_EDNA_API_URL=https://sagar-e-dna.vercel.app
+   REACT_APP_EDNA_API_URL=https://sagar-e-dna-2.vercel.app
    REACT_APP_SPECIES_ID_API_URL=https://chinmay0805-specie-identification.hf.space
    REACT_APP_TAXONOMY_API_URL=https://taxa-2.vercel.app
    
@@ -593,8 +593,9 @@ The Otolith module uses a HuggingFace Space API for species classification:
 The eDNA module uses a Vercel-hosted API for DNA sequence matching:
 
 **Configuration:**
-- Default URL: `https://sagar-e-dna.vercel.app`
-- Endpoint: `/api/v1/edna/match`
+- Default URL: `https://sagar-e-dna-2.vercel.app`
+- Endpoint: `GET /edna/match_sequence`
+- Input: Raw DNA sequence as query parameter `raw_sequence`
 - Configurable via: `REACT_APP_EDNA_API_URL` environment variable
 
 **Features:**
@@ -703,9 +704,30 @@ The Study section provides four scientist-oriented modules with a consistent gre
 - Sequence Length
 
 **API Integration:**
-- **Endpoint**: `https://sagar-e-dna.vercel.app/api/v1/edna/match`
-- **Input**: DNA sequence string (ACGT format)
-- **Output**: Species match with confidence metrics
+- **Endpoint**: `GET https://sagar-e-dna-2.vercel.app/edna/match_sequence`
+- **Input**: Raw DNA sequence as query parameter `raw_sequence` (ACGT format)
+- **Output**: 
+  ```json
+  {
+    "raw_sequence": "string",
+    "marker_type": "string",
+    "sequence_length": 0,
+    "matches": [
+      {
+        "specimen_id": "string",
+        "scientificName": "string",
+        "confidence": 0,
+        "reference_length": 0
+      }
+    ],
+    "summary": {
+      "top_match_specimen_id": "string",
+      "top_match_scientificName": "string",
+      "confidence": 0,
+      "num_reference_sequences_compared": 0
+    }
+  }
+  ```
 - CSV export with all API response fields
 - Species distribution visualization from real API results
 

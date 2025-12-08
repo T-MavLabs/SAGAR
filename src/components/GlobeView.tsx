@@ -48,7 +48,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   const [analysisSteps, setAnalysisSteps] = useState<string[]>([]);
   const [insight, setInsight] = useState<string | null>(null);
   const [selectedDataTypes, setSelectedDataTypes] = useState<DataType[]>([]); // Empty = auto-detect
-  const [activeMode, setActiveMode] = useState<'Analyse' | 'Study'>('Analyse'); // 'Visualise' commented out for now
+  const [activeMode, setActiveMode] = useState<'Analyse' | 'Visualise' | 'Study'>('Analyse');
   const [globeFocused, setGlobeFocused] = useState<boolean>(false);
   const [resetCamera, setResetCamera] = useState<(() => void) | null>(null);
   const [showQueryHistory, setShowQueryHistory] = useState<boolean>(false);
@@ -281,9 +281,9 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
 
   // Leave globe focus when switching away from Analyse
   useEffect(() => {
-    // if (activeMode === 'Visualise') {
-    //   setGlobeFocused(false);
-    // }
+    if (activeMode === 'Visualise') {
+      setGlobeFocused(false);
+    }
   }, [activeMode]);
 
   // Add event listeners for globe hover events
@@ -812,7 +812,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
         </h1>
         <div className="mt-2 flex justify-center">
           <div className="inline-flex bg-white/15 border border-white/25 rounded-xl overflow-hidden backdrop-blur-sm">
-            {(['Analyse', /* 'Visualise', */ 'Study'] as const).map((mode, idx) => (
+            {(['Analyse', 'Visualise', 'Study'] as const).map((mode, idx) => (
               <button
                 key={mode}
                 onClick={() => setActiveMode(mode)}
@@ -1371,9 +1371,9 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
           </motion.div>
         )}
       </div>
-      ) : /* activeMode === 'Visualise' ? (
+      ) : activeMode === 'Visualise' ? (
         <VisualiseView allData={dataPoints} />
-      ) : */ (
+      ) : (
         <StudyView selectedProject={selectedProject} />
       )}
 
@@ -1761,243 +1761,349 @@ type VisualiseViewProps = {
   allData: DataPoint[];
 };
 
+type MigrationPoint = {
+  year: number;
+  month: number;
+  latitude: number;
+  longitude: number;
+};
+
+type MigrationResponse = {
+  species: string;
+  months_requested: number;
+  sequence_length_used: number;
+  points: MigrationPoint[];
+};
+
 function VisualiseView({ allData }: VisualiseViewProps) {
-  const [template, setTemplate] = useState<string>('');
-  const [selectedDatasets, setSelectedDatasets] = useState<Array<'occurrencesByYear' | 'depthHistogram' | 'waterBodies' | 'methods'>>([]);
-  const [prompt, setPrompt] = useState<string>('');
-  const [analysis, setAnalysis] = useState<string>('');
-  const [filterExpr, setFilterExpr] = useState<string>('');
-  const [binSize, setBinSize] = useState<number>(100);
-
-  const uniqueWaterBodies = useMemo(() => Array.from(new Set(allData.map(d => d.waterBody))).filter(Boolean).sort(), [allData]);
-  const uniqueMethods = useMemo(() => Array.from(new Set(allData.map(d => d.samplingProtocol))).filter(Boolean).sort(), [allData]);
-  const uniqueLocalities = useMemo(() => Array.from(new Set(allData.map(d => d.locality))).filter(Boolean).sort(), [allData]);
-  const uniqueSpecies = useMemo(() => Array.from(new Set(allData.map(d => d.scientificName))).filter(Boolean).sort(), [allData]);
-
-  const filtered = useMemo(() => {
-    if (!filterExpr.trim()) return allData;
-    const clauses = filterExpr.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
-    return allData.filter(row => {
-      return clauses.every(cl => {
-        const [k, v] = cl.split(/[:=]/).map(s => s.trim());
-        if (!k || v == null) return true;
-        const rv = (row as any)[k];
-        if (rv == null) return false;
-        if (/^\d+\-\d+$/.test(v)) {
-          const [a,b] = v.split('-').map(Number);
-          const num = Number(rv);
-          if (isNaN(num)) return false;
-          return num >= a && num <= b;
-        }
-        if (/\d{4}-\d{2}-\d{2}\s*to\s*\d{4}-\d{2}-\d{2}/i.test(v)) {
-          const [s,e] = v.split(/to/i).map(s=>s.trim());
-          const t = new Date(String(rv)).getTime();
-          return t >= new Date(s).getTime() && t <= new Date(e).getTime();
-        }
-        return String(rv).toLowerCase().includes(v.toLowerCase());
-      });
-    });
-  }, [allData, filterExpr]);
-
-  const allowedCharts = ['Line','Area','Bar','Scatter','Pie','Heatmap','Box','Violin'] as const;
-
-  const occurrencesByYear = useMemo(() => {
-    const build = (src: DataPoint[]) => {
-      const yearCounts: { [year: number]: number } = {};
-      src.forEach(point => {
-        const year = new Date(point.eventDate).getFullYear();
-        if (!isNaN(year)) yearCounts[year] = (yearCounts[year] || 0) + 1;
-      });
-      return Object.entries(yearCounts).map(([year, count]) => ({ year: parseInt(year), count })).sort((a, b) => a.year - b.year);
+  const [activeView, setActiveView] = useState<'Migration Pattern' | 'VisualSagar'>('Migration Pattern');
+  
+  // Migration Pattern state
+  const [speciesName, setSpeciesName] = useState<string>('');
+  const [months, setMonths] = useState<number>(6);
+  const [migrationData, setMigrationData] = useState<MigrationResponse | null>(null);
+  const [isLoadingMigration, setIsLoadingMigration] = useState<boolean>(false);
+  const [migrationError, setMigrationError] = useState<string | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<DataPoint | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  
+  // Available species for migration pattern prediction
+  const availableSpecies = ['mackerel', 'sardinella', 'scomber', 'skipjack', 'tuna'];
+  
+  // Handle globe hover events for migration path
+  useEffect(() => {
+    const handleGlobeHover = (event: CustomEvent) => {
+      if (activeView === 'Migration Pattern') {
+        setHoveredPoint(event.detail.dataPoint);
+        setTooltipPosition(event.detail.position);
+      }
     };
-    let out = build(filtered.length ? filtered : allData);
-    if (!out.length) {
-      const now = new Date().getFullYear();
-      out = Array.from({ length: 10 }, (_, i) => ({ year: now - 9 + i, count: 20 + Math.floor(Math.random() * 80) }));
+
+    const handleGlobeLeave = () => {
+      if (activeView === 'Migration Pattern') {
+        setHoveredPoint(null);
+      }
+    };
+
+    window.addEventListener('globe-point-hover', handleGlobeHover as EventListener);
+    window.addEventListener('globe-point-leave', handleGlobeLeave);
+
+    return () => {
+      window.removeEventListener('globe-point-hover', handleGlobeHover as EventListener);
+      window.removeEventListener('globe-point-leave', handleGlobeLeave);
+    };
+  }, [activeView]);
+
+  // Convert migration points to DataPoint format for globe display
+  // Points are already sorted by month/year from the API response
+  const migrationDataPoints = useMemo(() => {
+    if (!migrationData?.points) return [];
+    // Ensure points are sorted by year and month for proper path rendering
+    const sortedPoints = [...migrationData.points].sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
+    return sortedPoints.map((point, idx) => ({
+      scientificName: migrationData.species,
+      decimalLatitude: point.latitude,
+      decimalLongitude: point.longitude,
+      eventDate: `${point.year}-${String(point.month).padStart(2, '0')}-01`,
+      waterBody: 'Migration Path',
+      locality: `Month ${point.month}/${point.year}`,
+      minimumDepthInMeters: 0,
+      maximumDepthInMeters: 0,
+      samplingProtocol: 'Migration Prediction',
+      identifiedBy: 'Migration Pattern API',
+    } as DataPoint));
+  }, [migrationData]);
+
+  const fetchMigrationPattern = async () => {
+    if (!speciesName.trim()) {
+      setMigrationError('Please enter a species name');
+      return;
     }
-    return out;
-  }, [filtered, allData]);
-
-  const depthHistogram = useMemo(() => {
-    const build = (src: DataPoint[]) => {
-      const depthCounts: { [depth: number]: number } = {};
-      src.forEach(point => {
-        const avgDepth = Math.round((point.minimumDepthInMeters + point.maximumDepthInMeters) / 2);
-        if (!isNaN(avgDepth)) depthCounts[avgDepth] = (depthCounts[avgDepth] || 0) + 1;
-      });
-      return Object.entries(depthCounts).map(([depth, count]) => ({ depth: parseInt(depth), count })).sort((a, b) => a.depth - b.depth);
-    };
-    let out = build(filtered.length ? filtered : allData);
-    if (!out.length) {
-      out = Array.from({ length: 10 }, (_, i) => ({ depth: i * 100, count: 10 + Math.floor(Math.random() * 40) }));
+    if (months < 1 || months > 24) {
+      setMigrationError('Months must be between 1 and 24');
+      return;
     }
-    return out;
-  }, [filtered, allData]);
 
-  const categoryCounts = useMemo(() => {
-    const aggregate = (src: DataPoint[], key: 'waterBody' | 'samplingProtocol') => {
-      const counts: { [name: string]: number } = {};
-      src.forEach(point => {
-        const val = (point as any)[key];
-        if (val) counts[val] = (counts[val] || 0) + 1;
-      });
-      const arr = Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 20);
-      if (arr.length) return arr;
-      // Sample categories when no data
-      const labels = key === 'waterBody' ? ['Indian Ocean','Arabian Sea','Bay of Bengal','Pacific','Atlantic'] : ['Net Tow','ROV','Dredge','eDNA','CTD'];
-      return labels.map((n, i) => ({ name: n, count: 10 + (i * 7) }));
-    };
-    const src = filtered.length ? filtered : allData;
-    return {
-      waterBodies: aggregate(src, 'waterBody'),
-      methods: aggregate(src, 'samplingProtocol')
-    };
-  }, [filtered, allData]);
+    setIsLoadingMigration(true);
+    setMigrationError(null);
+    
+    try {
+      const response = await fetch(
+        `https://chinmay0805-fish-migration-pattern.hf.space/predict-migration?species=${encodeURIComponent(speciesName)}&months=${months}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
-  const content = () => {
-    // 1) Build per-dataset series
-    const series: Record<string, XYPoint[]> = {};
-    const useSets = selectedDatasets.length ? selectedDatasets : (['occurrencesByYear','depthHistogram','waterBodies','methods'] as const);
-    useSets.forEach(ds => {
-      if (ds === 'occurrencesByYear') series[ds] = occurrencesByYear.map(d => ({ x: d.year, y: d.count }));
-      if (ds === 'depthHistogram') series[ds] = depthHistogram.map(d => ({ x: d.depth, y: d.count }));
-      if (ds === 'waterBodies') series[ds] = categoryCounts.waterBodies.map(d => ({ x: d.name, y: d.count }));
-      if (ds === 'methods') series[ds] = categoryCounts.methods.map(d => ({ x: d.name, y: d.count }));
-    });
-
-    // 2) Merge series into a single view for basic charts (sum y by x)
-    const merged: Record<string | number, number> = {};
-    Object.values(series).forEach(arr => {
-      arr.forEach(p => { const key = p.x as any; merged[key] = (merged[key] || 0) + p.y; });
-    });
-    const xy: XYPoint[] = Object.entries(merged).map(([x,y]) => ({ x: isNaN(Number(x)) ? x : Number(x), y: y as number }))
-      .sort((a,b) => (typeof a.x === 'number' && typeof b.x === 'number') ? (a.x as number) - (b.x as number) : String(a.x).localeCompare(String(b.x)));
-
-    const isCategorical = xy.some(d => typeof d.x !== 'number');
-
-    switch (template as any) {
-      case 'Line':
-        return isCategorical ? (
-          <SimpleBarChart data={xy} xLabel="category" yLabel="count" rotateLabels />
-        ) : (
-          <SimpleLineChart data={xy} xLabel="x" yLabel="count" />
-        );
-      case 'Area':
-        return isCategorical ? (
-          <SimpleBarChart data={xy} xLabel="category" yLabel="count" rotateLabels />
-        ) : (
-          <SimpleAreaChart data={xy} xLabel="x" yLabel="count" />
-        );
-      case 'Bar':
-        return <SimpleBarChart data={xy} xLabel={isCategorical ? 'category' : 'x'} yLabel="count" rotateLabels={isCategorical} />;
-      case 'Pie':
-        return <SimplePie data={xy} />;
-      case 'Heatmap': {
-        // Simple heatmap: x vs dataset index counts
-        const dsKeys = Object.keys(series);
-        const matrix: { x: number; y: number; v: number }[] = [];
-        dsKeys.forEach((name, yi) => {
-          series[name].forEach(p => {
-            const xv = typeof p.x === 'number' ? (p.x as number) : dsKeys.indexOf(name);
-            matrix.push({ x: xv, y: yi, v: p.y });
-          });
-        });
-        return <SimpleHeatmap data={matrix} xLabel="x" yLabel="dataset" xIsTime={false} />;
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.statusText}`);
       }
-      case 'Scatter': {
-        // Year vs depth scatter if both sets available; else numeric x vs y
-        const hasYear = !!series['occurrencesByYear'];
-        const pts = hasYear ? filtered.map(p => ({ x: new Date(p.eventDate).getFullYear(), y: Math.round((p.minimumDepthInMeters + p.maximumDepthInMeters) / 2) }))
-                            : xy.filter(d => typeof d.x === 'number');
-        return <SimpleScatter data={pts as any} xLabel="x" yLabel="y" />;
-      }
-      case 'Box': {
-        const vals = filtered.map(p => Math.round((p.minimumDepthInMeters + p.maximumDepthInMeters) / 2));
-        return <SimpleBoxPlot values={vals} xLabel="depth" />;
-      }
-      case 'Violin': {
-        const vals = filtered.map(p => Math.round((p.minimumDepthInMeters + p.maximumDepthInMeters) / 2));
-        return <SimpleViolinPlot values={vals} xLabel="depth" />;
-      }
-      default:
-        return (
-          <div className="w-full h-full flex items-center justify-center text-white/60 text-sm">
-            Select a graph/chart template to preview.
-          </div>
-        );
+
+      const data: MigrationResponse = await response.json();
+      setMigrationData(data);
+    } catch (error: any) {
+      setMigrationError(error.message || 'Failed to fetch migration pattern');
+      setMigrationData(null);
+    } finally {
+      setIsLoadingMigration(false);
     }
   };
 
   return (
-    <div className="pt-20 min-h-screen relative overflow-visible">
-      {/* Non-interactive globe background */}
-      <Suspense fallback={null}>
-        <div className="absolute inset-0 z-0 pointer-events-none opacity-90">
-          <ReactGlobeComponent
-            dataPoints={[]}
-            onDataPointClick={() => {}}
-            onCameraDistanceChange={undefined}
-            showStarsOnly
-          />
-        </div>
-      </Suspense>
-      <div className="relative z-10 max-w-6xl mx-auto px-6 py-10 overflow-visible">
-        <div className="flex flex-wrap items-center gap-4 justify-between bg-white/5 border border-white/15 rounded-2xl px-4 py-3 backdrop-blur-md overflow-visible">
-          <h2 className="text-2xl font-extrabold tracking-wide text-white">Visualise</h2>
-          <div className="flex items-center gap-3">
-            <Dropdown
-              value={template}
-              onChange={(v) => setTemplate(v)}
-              options={allowedCharts.map(chart => chart.toString())}
-            />
-            <MultiSelect
-              values={selectedDatasets}
-              onChange={(vals) => setSelectedDatasets(vals as Array<'occurrencesByYear' | 'depthHistogram' | 'waterBodies' | 'methods'>)}
-              options={[
-                { value: 'occurrencesByYear', label: 'Occurrences Over Years' },
-                { value: 'depthHistogram', label: 'Depth Histogram' },
-                { value: 'waterBodies', label: 'Water Bodies' },
-                { value: 'methods', label: 'Methods' }
-              ]}
-            />
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div className="md:col-span-2">
-            <label className="block text-xs text-white/70 mb-1">Prompt (Natural language)</label>
-            <input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g., Compare water bodies vs methods across years; highlight anomalies" className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs text-white/70 mb-1">Bin size (m) for depth</label>
-            <input type="number" min={10} step={10} value={binSize} onChange={(e)=>setBinSize(Math.max(10, Number(e.target.value)||100))} className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none" />
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div>
-            <label className="block text-xs text-white/70 mb-1">Filters (e.g., waterBody:Arabian Sea; depth:100-300)</label>
-            <input value={filterExpr} onChange={(e)=>setFilterExpr(e.target.value)} placeholder="field:value; field2:start-end" className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none" />
-          </div>
+    <div className="pt-20 min-h-screen relative flex">
+      {/* Sidebar */}
+      <div className="relative z-10 w-80 bg-white/5 backdrop-blur-md border-r border-white/20 p-6 overflow-y-auto">
+        <h2 className="text-2xl font-bold text-white mb-6">Visualise</h2>
+        
+        <div className="space-y-2">
+          <button
+            onClick={() => setActiveView('Migration Pattern')}
+            className={`w-full px-4 py-3 rounded-xl text-left transition-all ${
+              activeView === 'Migration Pattern'
+                ? 'bg-white/30 text-white font-semibold'
+                : 'bg-white/10 text-white/80 hover:bg-white/20'
+            }`}
+          >
+            Migration Pattern
+          </button>
           
-        </div>
-        <div className="mt-6 bg-black/30 backdrop-blur-md border border-white/15 rounded-2xl p-4 overflow-hidden relative">
-          <div className="h-[460px] w-full relative z-10">{content()}</div>
-          {analysis && (
-            <div className="mt-4 text-sm text-white/90 bg-white/5 border border-white/15 rounded-xl px-4 py-3 backdrop-blur-sm">{analysis}</div>
-          )}
-          <div className="mt-3 flex justify-end">
-            <button
-              onClick={() => {
-                // Simple prompt-driven analysis stub
-                const insight = `Analysis: Generated a ${template} chart from ${selectedDatasets.length} dataset(s). ${prompt ? `Prompt interpreted: ${prompt}. ` : ''}Sample insight: the central tendency appears stable with mild variation.`;
-                setAnalysis(insight);
-              }}
-              className="px-4 py-2 bg-white/10 border border-white/25 rounded-lg text-white hover:bg-white/15"
-            >
-              Run Analysis
-            </button>
-          </div>
+          <button
+            onClick={() => setActiveView('VisualSagar')}
+            className={`w-full px-4 py-3 rounded-xl text-left transition-all ${
+              activeView === 'VisualSagar'
+                ? 'bg-white/30 text-white font-semibold'
+                : 'bg-white/10 text-white/80 hover:bg-white/20'
+            }`}
+          >
+            VisualSagar
+          </button>
         </div>
       </div>
+
+      {/* Main Content Area */}
+      <div className="relative z-10 flex-1 p-8 overflow-y-auto">
+        {activeView === 'Migration Pattern' ? (
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white/5 backdrop-blur-md border border-white/15 rounded-2xl p-6">
+              <h3 className="text-xl font-bold text-white mb-6">Migration Pattern Prediction</h3>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">Species Name</label>
+                  <input
+                    type="text"
+                    value={speciesName}
+                    onChange={(e) => setSpeciesName(e.target.value)}
+                    placeholder="e.g., mackerel"
+                    list="species-list"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none"
+                  />
+                  <datalist id="species-list">
+                    {availableSpecies.map((species) => (
+                      <option key={species} value={species} />
+                    ))}
+                  </datalist>
+                </div>
+                
+                <div>
+                  <label className="block text-sm text-white/70 mb-2">Number of Future Months to Predict (1-24)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={months}
+                    onChange={(e) => setMonths(Math.max(1, Math.min(24, parseInt(e.target.value) || 6)))}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none"
+                  />
+                </div>
+                
+                <button
+                  onClick={fetchMigrationPattern}
+                  disabled={isLoadingMigration || !speciesName.trim()}
+                  className="w-full px-6 py-3 bg-marine-cyan/80 hover:bg-marine-cyan text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoadingMigration ? 'Loading...' : 'Predict Migration Pattern'}
+                </button>
+              </div>
+
+              {migrationError && (
+                <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm">
+                  {migrationError}
+                </div>
+              )}
+
+              {migrationData && (
+                <div className="mt-6 space-y-4">
+                  <div className="bg-white/5 border border-white/15 rounded-xl p-4">
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <span className="text-white/70 text-sm">Species:</span>
+                        <p className="text-white font-semibold">{migrationData.species}</p>
+                      </div>
+                      <div>
+                        <span className="text-white/70 text-sm">Months Requested:</span>
+                        <p className="text-white font-semibold">{migrationData.months_requested}</p>
+                      </div>
+                      <div>
+                        <span className="text-white/70 text-sm">Sequence Length Used:</span>
+                        <p className="text-white font-semibold">{migrationData.sequence_length_used}</p>
+                      </div>
+                      <div>
+                        <span className="text-white/70 text-sm">Total Points:</span>
+                        <p className="text-white font-semibold">{migrationData.points.length}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/15 rounded-xl p-4">
+                    <h4 className="text-white font-semibold mb-3">Migration Points</h4>
+                    <div className="max-h-96 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-white/20">
+                            <th className="text-left text-white/70 py-2 px-2">Year</th>
+                            <th className="text-left text-white/70 py-2 px-2">Month</th>
+                            <th className="text-left text-white/70 py-2 px-2">Latitude</th>
+                            <th className="text-left text-white/70 py-2 px-2">Longitude</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {migrationData.points.map((point, idx) => (
+                            <tr key={idx} className="border-b border-white/10">
+                              <td className="text-white py-2 px-2">{point.year}</td>
+                              <td className="text-white py-2 px-2">{point.month}</td>
+                              <td className="text-white py-2 px-2">{point.latitude.toFixed(4)}</td>
+                              <td className="text-white py-2 px-2">{point.longitude.toFixed(4)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/15 rounded-xl p-4">
+                    <h4 className="text-white font-semibold mb-3">Migration Path</h4>
+                    <div className="w-full aspect-square bg-black/20 rounded-xl overflow-hidden relative">
+                      <Suspense fallback={
+                        <div className="w-full h-full flex items-center justify-center text-white/60">
+                          Loading globe...
+                        </div>
+                      }>
+                        <ReactGlobeComponent
+                          dataPoints={migrationDataPoints}
+                          onDataPointClick={() => {}}
+                          onCameraDistanceChange={(d) => {
+                            // Same as main dashboard globe
+                          }}
+                          onResetCamera={(resetFunction) => {
+                            // Same as main dashboard globe
+                          }}
+                          showPath={true}
+                          focusOnData={true}
+                          enableRotate={false}
+                          enableZoom={true}
+                          disableAutoRotate={true}
+                        />
+                      </Suspense>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white/5 backdrop-blur-md border border-white/15 rounded-2xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">VisualSagar</h3>
+              <p className="text-white/70">VisualSagar content coming soon...</p>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Hover Tooltip for Migration Points - At root level to ensure visibility */}
+      {hoveredPoint && activeView === 'Migration Pattern' && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={{ duration: 0.2 }}
+          className="fixed z-[9999] pointer-events-none"
+          style={{
+            left: `${tooltipPosition.x + 10}px`,
+            top: `${tooltipPosition.y - 10}px`,
+            transform: 'translateX(-50%) translateY(-100%)'
+          }}
+        >
+          <div className="bg-gray-900/95 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4 shadow-2xl min-w-[280px]">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#22d3ee' }}></div>
+                <h4 className="text-sm font-semibold text-white">Migration Point Details</h4>
+              </div>
+              
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Species:</span>
+                  <span className="text-gray-200">{hoveredPoint.scientificName || 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Year:</span>
+                  <span className="text-gray-200">{hoveredPoint.eventDate ? new Date(hoveredPoint.eventDate).getFullYear() : 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Month:</span>
+                  <span className="text-gray-200">{hoveredPoint.eventDate ? new Date(hoveredPoint.eventDate).getMonth() + 1 : 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Coordinates:</span>
+                  <span className="text-gray-200">{hoveredPoint.decimalLatitude?.toFixed(4)}°, {hoveredPoint.decimalLongitude?.toFixed(4)}°</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Date:</span>
+                  <span className="text-gray-200">{hoveredPoint.eventDate ? new Date(hoveredPoint.eventDate).toLocaleDateString() : 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Location:</span>
+                  <span className="text-gray-200">{hoveredPoint.locality || 'Migration Path'}</span>
+                </div>
+                {migrationData && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Sequence Length:</span>
+                    <span className="text-gray-200">{migrationData.sequence_length_used}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

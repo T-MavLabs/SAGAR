@@ -149,14 +149,186 @@ function Landmasses() {
   })));
 }
 
+// --- Arrow component that points in a direction ---
+function Arrow({ position, direction, nextPoint }) {
+  const meshRef = useRef();
+  
+  useFrame(() => {
+    if (meshRef.current && direction && nextPoint) {
+      // Use the next point directly for lookAt to ensure arrow follows the path
+      meshRef.current.lookAt(nextPoint);
+    } else if (meshRef.current && direction) {
+      // Fallback: calculate target point along the direction vector
+      const target = new THREE.Vector3(
+        position.x + direction.x * 0.1,
+        position.y + direction.y * 0.1,
+        position.z + direction.z * 0.1
+      );
+      meshRef.current.lookAt(target);
+    }
+  });
+  
+  return /*#__PURE__*/React.createElement("mesh", {
+    ref: meshRef,
+    position: [position.x, position.y, position.z],
+    renderOrder: 5
+  }, /*#__PURE__*/React.createElement("coneGeometry", {
+    args: [0.008, 0.025, 6]
+  }), /*#__PURE__*/React.createElement("meshBasicMaterial", {
+    color: "#22d3ee",
+    depthTest: true,
+    depthWrite: false
+  }));
+}
+
+// --- Component to draw migration path lines with arrows and animation ---
+function MigrationPath({ dataPoints }) {
+  const [animationProgress, setAnimationProgress] = React.useState(0);
+  const linePoints = useMemo(() => {
+    if (!dataPoints || dataPoints.length < 2) return [];
+    const points = [];
+    for (let i = 0; i < dataPoints.length; i++) {
+      const point = dataPoints[i];
+      const v = latLonToVector3(point.decimalLatitude, point.decimalLongitude, 2.06);
+      points.push(v);
+    }
+    return points;
+  }, [dataPoints]);
+  
+  // Animate path drawing
+  React.useEffect(() => {
+    setAnimationProgress(0);
+    const duration = 2000; // 2 seconds
+    const startTime = Date.now();
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      setAnimationProgress(progress);
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+    animate();
+  }, [dataPoints]);
+  
+  // Create line segments connecting consecutive points
+  const segmentPoints = useMemo(() => {
+    if (linePoints.length < 2) return [];
+    const segments = [];
+    for (let i = 0; i < linePoints.length - 1; i++) {
+      segments.push(linePoints[i]);
+      segments.push(linePoints[i + 1]);
+    }
+    return segments;
+  }, [linePoints]);
+  
+  // Calculate total path length and create animated geometry
+  const animatedGeometry = useMemo(() => {
+    if (segmentPoints.length < 2) return null;
+    
+    // Calculate cumulative distances
+    let totalDistance = 0;
+    const distances = [0];
+    for (let i = 0; i < segmentPoints.length - 1; i += 2) {
+      const dist = segmentPoints[i].distanceTo(segmentPoints[i + 1]);
+      totalDistance += dist;
+      distances.push(totalDistance);
+    }
+    
+    // Create geometry up to animation progress
+    const animatedPoints = [];
+    const targetDistance = totalDistance * animationProgress;
+    
+    for (let i = 0; i < segmentPoints.length - 1; i += 2) {
+      const start = segmentPoints[i];
+      const end = segmentPoints[i + 1];
+      const segmentStartDist = distances[i / 2];
+      const segmentEndDist = distances[i / 2 + 1];
+      
+      if (segmentEndDist <= targetDistance) {
+        // Full segment visible
+        animatedPoints.push(start);
+        animatedPoints.push(end);
+      } else if (segmentStartDist < targetDistance) {
+        // Partial segment
+        const t = (targetDistance - segmentStartDist) / (segmentEndDist - segmentStartDist);
+        const partialEnd = start.clone().lerp(end, t);
+        animatedPoints.push(start);
+        animatedPoints.push(partialEnd);
+      }
+    }
+    
+    if (animatedPoints.length < 2) return null;
+    return new THREE.BufferGeometry().setFromPoints(animatedPoints);
+  }, [segmentPoints, animationProgress]);
+  
+  // Create arrow meshes along the path
+  const arrows = useMemo(() => {
+    if (linePoints.length < 2 || animationProgress < 0.1) return [];
+    const arrowMeshes = [];
+    
+    // Place arrows at midpoints of each segment, ensuring they follow the path direction
+    for (let i = 0; i < linePoints.length - 1; i++) {
+      const start = linePoints[i];
+      const end = linePoints[i + 1];
+      
+      // Calculate direction vector from start to end (this is the path direction)
+      const direction = end.clone().sub(start).normalize();
+      
+      // Position arrow at midpoint of segment
+      const midPoint = start.clone().lerp(end, 0.5);
+      
+      // Use the end point as the target for lookAt to ensure arrow follows the path
+      const nextPoint = end;
+      
+      // Only show arrow if this segment is animated
+      const segmentIndex = i;
+      const totalSegments = linePoints.length - 1;
+      const segmentProgress = animationProgress * totalSegments;
+      
+      if (segmentIndex < segmentProgress) {
+        arrowMeshes.push({
+          position: midPoint,
+          direction: direction,
+          nextPoint: nextPoint,
+          index: i
+        });
+      }
+    }
+    
+    return arrowMeshes;
+  }, [linePoints, animationProgress]);
+  
+  if (!animatedGeometry || segmentPoints.length < 2) return null;
+  
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("lineSegments", {
+    geometry: animatedGeometry,
+    renderOrder: 4
+  }, /*#__PURE__*/React.createElement("lineBasicMaterial", {
+    color: "#22d3ee",
+    linewidth: 3,
+    depthTest: true,
+    depthWrite: false
+  })), arrows.map((arrow, idx) => {
+    return /*#__PURE__*/React.createElement(Arrow, {
+      key: idx,
+      position: arrow.position,
+      direction: arrow.direction,
+      nextPoint: arrow.nextPoint
+    });
+  }));
+}
+
 // --- Main Scene Content ---
 function GlobeContent(props) {
   const groupRef = useRef();
   const dataPoints = (props && props.dataPoints) || [];
+  const showPath = !!(props && props.showPath);
+  const disableAutoRotate = !!(props && props.disableAutoRotate);
   const [isHovered, setIsHovered] = React.useState(false);
   
   useFrame((_, delta) => {
-    if (groupRef.current && !isHovered) {
+    if (groupRef.current && !isHovered && !disableAutoRotate) {
       groupRef.current.rotation.y += delta * 0.02; // Slower, smoother rotation
     }
   });
@@ -178,7 +350,9 @@ function GlobeContent(props) {
     depthWrite: false
   })), /*#__PURE__*/React.createElement(Suspense, {
     fallback: null
-  }, /*#__PURE__*/React.createElement(Landmasses, null)), dataPoints && dataPoints.length > 0 && /*#__PURE__*/React.createElement("group", null, dataPoints.map((p, i) => {
+  }, /*#__PURE__*/React.createElement(Landmasses, null)), showPath && dataPoints && dataPoints.length > 1 && /*#__PURE__*/React.createElement(MigrationPath, {
+    dataPoints: dataPoints
+  }), dataPoints && dataPoints.length > 0 && /*#__PURE__*/React.createElement("group", null, dataPoints.map((p, i) => {
     const v = latLonToVector3(p.decimalLatitude, p.decimalLongitude, 2.06);
     return /*#__PURE__*/React.createElement("mesh", {
       key: i,
@@ -203,9 +377,9 @@ function GlobeContent(props) {
         window.dispatchEvent(new CustomEvent('globe-point-leave'));
       }
     }, /*#__PURE__*/React.createElement("sphereGeometry", {
-      args: [0.005, 8, 8]
+      args: [0.01, 8, 8]
     }), /*#__PURE__*/React.createElement("meshBasicMaterial", {
-      color: "#ef4444",
+      color: "#22d3ee",
       depthTest: true,
       depthWrite: false
     }));
@@ -225,13 +399,73 @@ function CameraMonitor({ onChange }) {
 }
 
 // Camera Reset Component
-function CameraReset({ onReset }) {
+function CameraReset({ onReset, focusOnData, dataPoints, enableRotate = true, enableZoom = true, minDistance, maxDistance }) {
   const { camera } = useThree();
   const controlsRef = useRef();
   
   // Store initial camera position and target
   const initialPosition = useRef([0, 0, 7.5]);
   const initialTarget = useRef([0, 0, 0]);
+  
+  // Calculate zoom limits based on data points if provided
+  const calculatedLimits = React.useMemo(() => {
+    if (focusOnData && dataPoints && dataPoints.length > 0) {
+      // Calculate center of all points
+      const center = new THREE.Vector3();
+      dataPoints.forEach(point => {
+        const v = latLonToVector3(point.decimalLatitude, point.decimalLongitude, 2.06);
+        center.add(v);
+      });
+      center.divideScalar(dataPoints.length);
+      
+      // Calculate bounding sphere
+      let maxDist = 0;
+      dataPoints.forEach(point => {
+        const v = latLonToVector3(point.decimalLatitude, point.decimalLongitude, 2.06);
+        const distance = center.distanceTo(v);
+        if (distance > maxDist) maxDist = distance;
+      });
+      
+      // Globe radius is 2.06, ensure we don't go inside
+      // minDistance: allow close zoom but stay outside globe (2.06 + buffer)
+      const calculatedMin = Math.max(3.2, 2.06 + 1.0);
+      // maxDistance: ensure pattern stays visible (pattern size * 4, but not too far)
+      const calculatedMax = Math.max(maxDist * 4, 8);
+      
+      return { min: calculatedMin, max: Math.min(calculatedMax, 15) };
+    }
+    return null;
+  }, [focusOnData, dataPoints]);
+  
+  // Focus camera on data points if requested
+  React.useEffect(() => {
+    if (focusOnData && dataPoints && dataPoints.length > 0 && controlsRef.current) {
+      // Calculate center of all points
+      const center = new THREE.Vector3();
+      dataPoints.forEach(point => {
+        const v = latLonToVector3(point.decimalLatitude, point.decimalLongitude, 2.06);
+        center.add(v);
+      });
+      center.divideScalar(dataPoints.length);
+      
+      // Calculate bounding sphere
+      let maxDist = 0;
+      dataPoints.forEach(point => {
+        const v = latLonToVector3(point.decimalLatitude, point.decimalLongitude, 2.06);
+        const distance = center.distanceTo(v);
+        if (distance > maxDist) maxDist = distance;
+      });
+      
+      // Position camera to view the area - start at a good viewing distance
+      const distance = Math.max(maxDist * 3, 5);
+      const direction = center.clone().normalize();
+      const cameraPos = direction.multiplyScalar(distance);
+      
+      camera.position.set(cameraPos.x, cameraPos.y, cameraPos.z);
+      controlsRef.current.target.copy(center);
+      controlsRef.current.update();
+    }
+  }, [focusOnData, dataPoints, camera]);
   
   // Expose reset function to parent
   React.useEffect(() => {
@@ -249,12 +483,17 @@ function CameraReset({ onReset }) {
     }
   }, [camera, onReset]);
   
+  // Use calculated limits if available, otherwise use provided or defaults
+  const finalMinDistance = minDistance !== undefined ? minDistance : (calculatedLimits ? calculatedLimits.min : 4.5);
+  const finalMaxDistance = maxDistance !== undefined ? maxDistance : (calculatedLimits ? calculatedLimits.max : 10);
+  
   return /*#__PURE__*/React.createElement(OrbitControls, {
     ref: controlsRef,
     enablePan: false,
-    enableZoom: true,
-    minDistance: 4.5,
-    maxDistance: 10,
+    enableZoom: enableZoom,
+    enableRotate: enableRotate,
+    minDistance: finalMinDistance,
+    maxDistance: finalMaxDistance,
     autoRotate: false
   });
 }
@@ -264,6 +503,13 @@ export function Globe(props) {
   const onResetCamera = props && props.onResetCamera;
   const showStarsOnly = !!(props && props.showStarsOnly);
   const dataPoints = (props && props.dataPoints) || [];
+  const showPath = !!(props && props.showPath);
+  const focusOnData = !!(props && props.focusOnData);
+  const enableRotate = props && props.enableRotate !== undefined ? props.enableRotate : true;
+  const enableZoom = props && props.enableZoom !== undefined ? props.enableZoom : true;
+  const minDistance = props && props.minDistance;
+  const maxDistance = props && props.maxDistance;
+  const disableAutoRotate = !!(props && props.disableAutoRotate);
   return /*#__PURE__*/React.createElement(Canvas, {
     camera: {
       position: [0, 0, 7.5],
@@ -286,5 +532,5 @@ export function Globe(props) {
     scale: [200, 200, 200]
   }), /*#__PURE__*/React.createElement(Suspense, {
     fallback: null
-  }, showStarsOnly ? null : /*#__PURE__*/React.createElement(GlobeContent, { dataPoints: dataPoints })), /*#__PURE__*/React.createElement(CameraReset, { onReset: onResetCamera }), /*#__PURE__*/React.createElement(CameraMonitor, { onChange: onCameraDistanceChange }));
+  }, showStarsOnly ? null : /*#__PURE__*/React.createElement(GlobeContent, { dataPoints: dataPoints, showPath: showPath, disableAutoRotate: disableAutoRotate })), /*#__PURE__*/React.createElement(CameraReset, { onReset: onResetCamera, focusOnData: focusOnData, dataPoints: dataPoints, enableRotate: enableRotate, enableZoom: enableZoom, minDistance: minDistance, maxDistance: maxDistance }), /*#__PURE__*/React.createElement(CameraMonitor, { onChange: onCameraDistanceChange }));
 }

@@ -149,7 +149,7 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack, onLogout, o
             <nav className="hidden md:flex items-center space-x-8">
               {[
                 { name: 'Home', icon: FiHome, href: '#', onClick: onBack, isExternal: false },
-                { name: 'Data Sources', icon: FiDatabase, href: '#', onClick: onNavigateToDataSources || onBack, isExternal: false },
+                { name: 'Data Sources', icon: FiDatabase, href: 'https://data-ingestion-frontend-sagar.vercel.app/', onClick: undefined, isExternal: true },
                 { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: undefined, isExternal: false, active: true }
               ].map((item, index) => (
                 item.isExternal ? (

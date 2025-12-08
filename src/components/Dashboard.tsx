@@ -135,7 +135,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
             <nav className="hidden md:flex items-center space-x-8">
               {[
                 { name: 'Home', icon: FiHome, href: '#', onClick: undefined, isExternal: false },
-                { name: 'Data Sources', icon: FiDatabase, href: '#', onClick: onNavigateToDataSources, isExternal: false },
+                { name: 'Data Sources', icon: FiDatabase, href: 'https://data-ingestion-frontend-sagar.vercel.app/', onClick: undefined, isExternal: true },
                 { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: onNavigateToAPI, isExternal: false }
               ].map((item, index) => (
                 item.isExternal ? (

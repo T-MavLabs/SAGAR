@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, Suspense } from 'react';
 import ReactDOM from 'react-dom';
 import { motion } from 'framer-motion';
-import { FiArrowLeft, FiFilter, FiPlus, FiActivity, FiTrendingUp, FiSearch, FiX, FiClock, FiDatabase, FiFileText, FiEdit2, FiTrash2, FiSave, FiPenTool } from 'react-icons/fi';
+import { FiArrowLeft, FiFilter, FiPlus, FiActivity, FiTrendingUp, FiSearch, FiX, FiClock, FiDatabase, FiFileText, FiEdit2, FiTrash2, FiSave, FiPenTool, FiPause, FiPlay, FiSquare, FiCheck, FiRotateCcw, FiInfo } from 'react-icons/fi';
 import { Project, DataPoint } from '../App';
 import ReactGlobeComponent from './ReactGlobeComponent';
 import { Card, CardTitle, CardDescription, CardSkeletonContainer } from './ui/aceternityCards';
@@ -67,6 +67,92 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
   const [panelNoteTitle, setPanelNoteTitle] = useState('');
   const [panelNoteContent, setPanelNoteContent] = useState('');
   const [savingPanelNote, setSavingPanelNote] = useState(false);
+  const [isGlobeRotationPaused, setIsGlobeRotationPaused] = useState<boolean>(false);
+  const [isPolygonDrawingMode, setIsPolygonDrawingMode] = useState<boolean>(false);
+  const [polygonVertices, setPolygonVertices] = useState<Array<{ lat: number; lng: number }>>([]);
+  const [currentPolygon, setCurrentPolygon] = useState<Array<{ lat: number; lng: number }> | null>(null);
+  const [polygonOccurrences, setPolygonOccurrences] = useState<DataPoint[]>([]);
+  const [showPolygonInfo, setShowPolygonInfo] = useState(false);
+
+  // Add polygon vertex; if new point is close to the first point, auto-close
+  const addPolygonVertex = (lat: number, lng: number) => {
+    setPolygonVertices(prev => {
+      if (prev.length >= 3) {
+        const first = prev[0];
+        const dist = Math.hypot(lat - first.lat, lng - first.lng); // simple degree distance
+        const closeThreshold = 0.5; // degrees ~55km
+        if (dist <= closeThreshold) {
+          // Close polygon by snapping to first point
+          const closed = [...prev, first];
+          setCurrentPolygon(closed);
+          setIsPolygonDrawingMode(false);
+          return closed;
+        }
+      }
+      return [...prev, { lat, lng }];
+    });
+  };
+
+  const pointInPolygon = (point: { lat: number; lng: number }, poly: Array<{ lat: number; lng: number }>) => {
+    // Spherical point-in-polygon: sum of angles method on unit sphere
+    if (poly.length < 3) return false;
+
+    // Remove duplicate last vertex if present
+    const cleanPoly = poly.slice();
+    const first = cleanPoly[0];
+    const last = cleanPoly[cleanPoly.length - 1];
+    if (Math.abs(first.lat - last.lat) < 1e-9 && Math.abs(first.lng - last.lng) < 1e-9) {
+      cleanPoly.pop();
+    }
+    if (cleanPoly.length < 3) return false;
+
+    const toVec = (lat: number, lng: number) => {
+      const rlat = (lat * Math.PI) / 180;
+      const rlng = (lng * Math.PI) / 180;
+      return {
+        x: Math.cos(rlat) * Math.cos(rlng),
+        y: Math.cos(rlat) * Math.sin(rlng),
+        z: Math.sin(rlat),
+      };
+    };
+
+    const p = toVec(point.lat, point.lng);
+    let angleSum = 0;
+    for (let i = 0; i < cleanPoly.length; i++) {
+      const a = toVec(cleanPoly[i].lat, cleanPoly[i].lng);
+      const b = toVec(cleanPoly[(i + 1) % cleanPoly.length].lat, cleanPoly[(i + 1) % cleanPoly.length].lng);
+      // Compute angle between (a-p) and (b-p)
+      const ap = { x: a.x - p.x, y: a.y - p.y, z: a.z - p.z };
+      const bp = { x: b.x - p.x, y: b.y - p.y, z: b.z - p.z };
+      const apLen = Math.sqrt(ap.x * ap.x + ap.y * ap.y + ap.z * ap.z);
+      const bpLen = Math.sqrt(bp.x * bp.x + bp.y * bp.y + bp.z * bp.z);
+      if (apLen === 0 || bpLen === 0) return true; // point coincides with vertex
+      const dot = (ap.x * bp.x + ap.y * bp.y + ap.z * bp.z) / (apLen * bpLen);
+      const cross = {
+        x: ap.y * bp.z - ap.z * bp.y,
+        y: ap.z * bp.x - ap.x * bp.z,
+        z: ap.x * bp.y - ap.y * bp.x,
+      };
+      const crossLen = Math.sqrt(cross.x * cross.x + cross.y * cross.y + cross.z * cross.z);
+      const angle = Math.atan2(crossLen, dot);
+      // Determine sign based on direction (using point as origin)
+      const sign = (p.x * cross.x + p.y * cross.y + p.z * cross.z) >= 0 ? 1 : -1;
+      angleSum += sign * angle;
+    }
+    return Math.abs(angleSum) > Math.PI; // inside if angle sum around 2π
+  };
+
+  const captureOccurrencesInPolygon = () => {
+    const poly = currentPolygon || polygonVertices;
+    if (!poly || poly.length < 3) {
+      setPolygonOccurrences([]);
+      setShowPolygonInfo(true);
+      return;
+    }
+    const occurrences = filteredData.filter(dp => pointInPolygon({ lat: dp.decimalLatitude, lng: dp.decimalLongitude }, poly));
+    setPolygonOccurrences(occurrences);
+    setShowPolygonInfo(true);
+  };
 
   const loadQueryHistory = async () => {
     setIsLoadingHistory(true);
@@ -1151,9 +1237,169 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
                 onResetCamera={(resetFunction) => {
                   setResetCamera(() => resetFunction);
                 }}
+                disableAutoRotate={isGlobeRotationPaused}
+                isPolygonDrawingMode={isPolygonDrawingMode}
+                onPolygonVertexAdd={addPolygonVertex}
+                polygonVertices={currentPolygon || polygonVertices}
               />
             </div>
           </Suspense>
+        )}
+
+        {/* Pause + Screenshot Buttons (stacked) */}
+        {!isLoading && (
+          <div className={`absolute top-24 right-[340px] z-50 flex flex-col gap-3 ${globeFocused ? 'filter blur-md pointer-events-none' : 'pointer-events-auto'}`}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsGlobeRotationPaused(prev => !prev);
+              }}
+              className="flex items-center justify-center w-14 h-14 bg-black/70 backdrop-blur-md border-2 border-white/40 rounded-full shadow-xl hover:bg-black/90 hover:border-marine-cyan/70 hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
+              title={isGlobeRotationPaused ? 'Resume globe rotation' : 'Pause globe rotation'}
+              aria-label={isGlobeRotationPaused ? 'Resume globe rotation' : 'Pause globe rotation'}
+            >
+              {isGlobeRotationPaused ? (
+                <FiPlay className="w-6 h-6 text-white ml-0.5" />
+              ) : (
+                <FiPause className="w-6 h-6 text-white" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.dispatchEvent(new Event('globe-download'));
+              }}
+              className="flex items-center justify-center w-14 h-14 bg-black/70 backdrop-blur-md border-2 border-white/40 rounded-full shadow-xl hover:bg-black/90 hover:border-marine-cyan/70 hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
+              title="Download screenshot of globe"
+              aria-label="Download globe screenshot"
+            >
+              <FiDatabase className="w-6 h-6 text-white" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.dispatchEvent(new Event('region-download'));
+              }}
+              className="flex items-center justify-center w-14 h-14 bg-black/70 backdrop-blur-md border-2 border-white/40 rounded-full shadow-xl hover:bg-black/90 hover:border-marine-cyan/70 hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
+              title="Download screenshot of marked region"
+              aria-label="Download region screenshot"
+            >
+              <FiSave className="w-6 h-6 text-white" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                captureOccurrencesInPolygon();
+              }}
+              className="flex items-center justify-center w-14 h-14 bg-black/70 backdrop-blur-md border-2 border-white/40 rounded-full shadow-xl hover:bg-black/90 hover:border-marine-cyan/70 hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
+              title="Show occurrences inside marked region"
+              aria-label="Show occurrences inside marked region"
+            >
+              <FiInfo className="w-6 h-6 text-white" />
+            </button>
+          </div>
+        )}
+
+        {/* Polygon Drawing Controls */}
+        {!isLoading && (
+          <div className={`absolute top-24 right-[400px] z-50 flex flex-col gap-2 ${globeFocused ? 'filter blur-md pointer-events-none' : 'pointer-events-auto'}`}>
+            {!isPolygonDrawingMode ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPolygonDrawingMode(true);
+                  setPolygonVertices([]);
+                }}
+                className="flex items-center justify-center w-14 h-14 bg-black/70 backdrop-blur-md border-2 border-white/40 rounded-full shadow-xl hover:bg-black/90 hover:border-marine-cyan/70 hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
+                title="Start drawing polygon to select area"
+                aria-label="Start drawing polygon"
+              >
+                <FiSquare className="w-6 h-6 text-white" />
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (polygonVertices.length >= 3) {
+                      const closed = [...polygonVertices, polygonVertices[0]];
+                      setCurrentPolygon(closed);
+                      setPolygonVertices(closed);
+                      setIsPolygonDrawingMode(false);
+                    }
+                  }}
+                  disabled={polygonVertices.length < 3}
+                  className="flex items-center justify-center w-14 h-14 bg-green-600/70 backdrop-blur-md border-2 border-green-400/70 rounded-full shadow-xl hover:bg-green-600/90 hover:border-green-300/70 hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={polygonVertices.length < 3 ? 'Add at least 3 points to complete' : 'Complete polygon'}
+                  aria-label="Complete polygon"
+                >
+                  <FiCheck className="w-6 h-6 text-white" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsPolygonDrawingMode(false);
+                    setPolygonVertices([]);
+                    setCurrentPolygon(null);
+                  }}
+                  className="flex items-center justify-center w-14 h-14 bg-red-600/70 backdrop-blur-md border-2 border-red-400/70 rounded-full shadow-xl hover:bg-red-600/90 hover:border-red-300/70 hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer"
+                  title="Cancel polygon drawing"
+                  aria-label="Cancel polygon drawing"
+                >
+                  <FiRotateCcw className="w-6 h-6 text-white" />
+                </button>
+                {polygonVertices.length > 0 && (
+                  <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-black/80 backdrop-blur-md border border-white/30 rounded-lg px-3 py-1.5 text-xs text-white whitespace-nowrap">
+                    {polygonVertices.length} point{polygonVertices.length !== 1 ? 's' : ''}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Polygon Occurrences Panel */}
+        {showPolygonInfo && (
+          <div className="absolute bottom-6 right-4 z-40 w-80 max-h-[50vh] overflow-y-auto bg-black/70 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl p-4 text-white space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-lg font-semibold">Occurrences in region</div>
+              <button
+                type="button"
+                onClick={() => setShowPolygonInfo(false)}
+                className="text-sm text-white/70 hover:text-white"
+                aria-label="Close polygon info"
+              >
+                Close
+              </button>
+            </div>
+            <div className="text-sm text-white/80">
+              Total: {polygonOccurrences.length}
+            </div>
+            {polygonOccurrences.length === 0 ? (
+              <div className="text-sm text-white/60">No occurrences inside this region.</div>
+            ) : (
+              <div className="space-y-2">
+                {polygonOccurrences.map((occ, idx) => (
+                  <div key={`${occ.scientificName}-${idx}`} className="border border-white/10 rounded-lg p-2 bg-white/5">
+                    <div className="text-sm font-medium">{occ.scientificName || 'Unknown species'}</div>
+                    <div className="text-xs text-white/70">
+                      {occ.locality || 'Unknown locality'} | {occ.eventDate || 'Unknown date'}
+                    </div>
+                    <div className="text-xs text-white/60">
+                      Lat/Lng: {occ.decimalLatitude?.toFixed(2)}, {occ.decimalLongitude?.toFixed(2)} | Depth: {occ.minimumDepthInMeters ?? '-'} - {occ.maximumDepthInMeters ?? '-'} m
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Center area keeps layout spacing; do not block pointer events to globe */}

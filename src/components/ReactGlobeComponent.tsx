@@ -17,9 +17,12 @@ interface ReactGlobeComponentProps {
   minDistance?: number;
   maxDistance?: number;
   disableAutoRotate?: boolean;
+  isPolygonDrawingMode?: boolean;
+  onPolygonVertexAdd?: (lat: number, lng: number) => void;
+  polygonVertices?: Array<{ lat: number; lng: number }>;
 }
 
-const ReactGlobeComponent: React.FC<ReactGlobeComponentProps> = ({ dataPoints, onDataPointClick, onCameraDistanceChange, onResetCamera, showStarsOnly, showPath, focusOnData, enableRotate, enableZoom, minDistance, maxDistance, disableAutoRotate }) => {
+const ReactGlobeComponent: React.FC<ReactGlobeComponentProps> = ({ dataPoints, onDataPointClick, onCameraDistanceChange, onResetCamera, showStarsOnly, showPath, focusOnData, enableRotate, enableZoom, minDistance, maxDistance, disableAutoRotate, isPolygonDrawingMode, onPolygonVertexAdd, polygonVertices }) => {
   return (
     <div style={{ width: '100%', height: '100%', backgroundColor: 'black', position: 'relative' }}>
       <ExternalGlobe 
@@ -35,6 +38,9 @@ const ReactGlobeComponent: React.FC<ReactGlobeComponentProps> = ({ dataPoints, o
         minDistance={minDistance}
         maxDistance={maxDistance}
         disableAutoRotate={disableAutoRotate}
+        isPolygonDrawingMode={isPolygonDrawingMode}
+        onPolygonVertexAdd={onPolygonVertexAdd}
+        polygonVertices={polygonVertices}
       />
     </div>
   );

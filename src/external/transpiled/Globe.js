@@ -1,7 +1,8 @@
-import React, { useRef, useMemo, Suspense } from 'react';
+import React, { useRef, useMemo, Suspense, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
+import { Raycaster } from 'three';
 
 // --- Import all 7 of your new GeoJSON files ---
 import africaData from './assets/AF.json';
@@ -20,6 +21,16 @@ function latLonToVector3(lat, lon, radius) {
   const z = radius * Math.sin(phi) * Math.sin(theta);
   const y = radius * Math.cos(phi);
   return new THREE.Vector3(x, y, z);
+}
+
+// --- Helper function to convert 3D vector to Lat/Lon ---
+function vector3ToLatLon(vector, radius) {
+  const x = vector.x;
+  const y = vector.y;
+  const z = vector.z;
+  const lat = 90 - (Math.acos(y / radius) * 180 / Math.PI);
+  const lon = (Math.atan2(z, -x) * 180 / Math.PI) - 180;
+  return { lat, lng: lon };
 }
 
 // --- Helper function to robustly extract features from any GeoJSON structure ---
@@ -325,12 +336,287 @@ function MigrationPath({ dataPoints }) {
   }));
 }
 
+// --- Polygon Drawing Component ---
+function PolygonDrawing({ isDrawingMode, onVertexAdd, globeRadius = 2.06 }) {
+  const { camera, scene, gl } = useThree();
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const globeMeshRef = useRef();
+  
+  React.useEffect(() => {
+    if (!isDrawingMode) return;
+    
+    const handleClick = (event) => {
+      if (!globeMeshRef.current) return;
+      
+      const rect = gl.domElement.getBoundingClientRect();
+      const mouse = new THREE.Vector2();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(globeMeshRef.current);
+      
+      if (intersects.length > 0) {
+        const point = intersects[0].point;
+        const normalized = point.normalize();
+        const surfacePoint = normalized.multiplyScalar(globeRadius);
+        const { lat, lng } = vector3ToLatLon(surfacePoint, globeRadius);
+        if (onVertexAdd) {
+          onVertexAdd(lat, lng);
+        }
+      }
+    };
+    
+    gl.domElement.addEventListener('click', handleClick);
+    gl.domElement.style.cursor = isDrawingMode ? 'crosshair' : 'auto';
+    
+    return () => {
+      gl.domElement.removeEventListener('click', handleClick);
+      gl.domElement.style.cursor = 'auto';
+    };
+  }, [isDrawingMode, onVertexAdd, camera, gl, raycaster, globeRadius]);
+  
+  return /*#__PURE__*/React.createElement("mesh", {
+    ref: globeMeshRef,
+    visible: false,
+    renderOrder: 1
+  }, /*#__PURE__*/React.createElement("sphereGeometry", {
+    args: [globeRadius, 64, 64]
+  }), /*#__PURE__*/React.createElement("meshBasicMaterial", {
+    transparent: true,
+    opacity: 0
+  }));
+}
+
+// --- Polygon Renderer Component ---
+function PolygonRenderer({ vertices, globeRadius = 2.06 }) {
+  // Hooks must be called unconditionally - move them before any early returns
+  // Dynamic offset so outline/fill sit above the globe regardless of radius/size
+  const offset = Math.max(globeRadius * 0.08, 0.06); // ~8% of radius, min 0.06
+
+  // Create geodesic-curved edges along the sphere by sampling great-circle points
+  const points = useMemo(() => {
+    if (!vertices || vertices.length < 2) return [];
+
+    // Helper to get a point along the great circle between two vectors
+    const slerpPoint = (va, vb, t) => {
+      const angle = Math.acos(THREE.MathUtils.clamp(va.dot(vb), -1, 1));
+      if (angle === 0) return va.clone();
+      const sinAngle = Math.sin(angle);
+      const w1 = Math.sin((1 - t) * angle) / sinAngle;
+      const w2 = Math.sin(t * angle) / sinAngle;
+      return va.clone().multiplyScalar(w1).add(vb.clone().multiplyScalar(w2));
+    };
+
+    const expanded = [];
+    const samplesPerEdge = 24; // smoothness of curve
+
+    for (let i = 0; i < vertices.length; i++) {
+      const curr = vertices[i];
+      const next = vertices[(i + 1) % vertices.length]; // wrap for closure
+
+      const va = latLonToVector3(curr.lat, curr.lng, globeRadius).normalize();
+      const vb = latLonToVector3(next.lat, next.lng, globeRadius).normalize();
+
+      for (let s = 0; s <= samplesPerEdge; s++) {
+        const t = s / samplesPerEdge;
+        // Avoid duplicating the first point of the next edge
+        if (s > 0 && i === vertices.length - 1 && s === samplesPerEdge) break;
+        const p = slerpPoint(va, vb, t).multiplyScalar(globeRadius + offset);
+        expanded.push([p.x, p.y, p.z]);
+      }
+    }
+
+    return expanded;
+  }, [vertices, globeRadius, offset]);
+  
+  // Close the polygon by adding the first point at the end
+  const closedPoints = useMemo(() => {
+    if (points.length < 2) return points;
+    return [...points, points[0]];
+  }, [points]);
+
+  const geometry = useMemo(() => {
+    if (closedPoints.length < 2) return null;
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(closedPoints.flat());
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    return geo;
+  }, [closedPoints]);
+  
+  // Create filled polygon geometry (only for closed polygons with 3+ vertices)
+  const fillGeometry = useMemo(() => {
+    if (!points || points.length < 3) return null;
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(points.flat());
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    
+    // Create indices for triangulation (fan from first vertex)
+    const indices = [];
+    for (let i = 1; i < points.length - 1; i++) {
+      indices.push(0, i, i + 1);
+    }
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    return geo;
+  }, [points]);
+  
+  // Early return after hooks
+  if (!vertices || vertices.length < 2 || !geometry) return null;
+  
+  return /*#__PURE__*/React.createElement(React.Fragment, null, 
+    // Polygon outline
+    /*#__PURE__*/React.createElement("line", {
+      geometry: geometry,
+      renderOrder: 71
+    }, /*#__PURE__*/React.createElement("lineBasicMaterial", {
+      color: "#00ff88",
+      linewidth: 3,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.FrontSide
+    })),
+    vertices.map((v, i) => {
+      const vec = latLonToVector3(v.lat, v.lng, globeRadius);
+      // Offset above globe surface to keep vertices outside the globe
+      const normalized = vec.normalize();
+      const offsetVec = normalized.multiplyScalar(globeRadius + offset);
+      return /*#__PURE__*/React.createElement("mesh", {
+        key: i,
+        position: [offsetVec.x, offsetVec.y, offsetVec.z],
+        renderOrder: 72
+      }, /*#__PURE__*/React.createElement("sphereGeometry", {
+        args: [0.02, 8, 8]
+      }), /*#__PURE__*/React.createElement("meshBasicMaterial", {
+        color: "#00ff88",
+        transparent: true,
+        opacity: 0.95,
+        depthTest: true,
+        depthWrite: false,
+        side: THREE.FrontSide
+      }));
+    })
+  );
+}
+
+// --- Screenshot Handler (captures globe or polygon region) ---
+function ScreenshotHandler({ polygonVertices, globeRadius = 2.06 }) {
+  const { gl, camera, scene } = useThree();
+  const offset = Math.max(globeRadius * 0.08, 0.06);
+
+  useEffect(() => {
+    if (!gl || !camera || !scene) return;
+
+    const saveBlob = async (blob, name) => {
+      if (window.showSaveFilePicker) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: 'PNG Image', accept: { 'image/png': ['.png'] } }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } else {
+        // Fallback to download if File System Access API not available
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+    };
+
+    const canvasToBlob = (canvas, cropRect) => {
+      return new Promise((resolve) => {
+        const targetCanvas = cropRect ? (() => {
+          const tmp = document.createElement('canvas');
+          tmp.width = cropRect.width;
+          tmp.height = cropRect.height;
+          const ctx = tmp.getContext('2d');
+          ctx.drawImage(
+            canvas,
+            cropRect.x,
+            cropRect.y,
+            cropRect.width,
+            cropRect.height,
+            0,
+            0,
+            cropRect.width,
+            cropRect.height
+          );
+          return tmp;
+        })() : canvas;
+        targetCanvas.toBlob((blob) => resolve(blob), 'image/png');
+      });
+    };
+
+    const saveCanvas = async (canvas, name, cropRect) => {
+      // Ensure latest frame rendered before capture
+      gl.setRenderTarget(null);
+      gl.render(scene, camera);
+
+      const blob = await canvasToBlob(canvas, cropRect);
+      if (blob) {
+        await saveBlob(blob, name);
+      }
+    };
+
+    const projectPoint = (lat, lng) => {
+      const vec = latLonToVector3(lat, lng, globeRadius);
+      const offsetVec = vec.normalize().multiplyScalar(globeRadius + offset);
+      const projected = offsetVec.project(camera);
+      const canvas = gl.domElement;
+      return {
+        x: (projected.x * 0.5 + 0.5) * canvas.width,
+        y: (-projected.y * 0.5 + 0.5) * canvas.height
+      };
+    };
+
+    const handleGlobe = () => {
+      saveCanvas(gl.domElement, 'globe-region.png');
+    };
+
+    const handleRegion = () => {
+      if (!polygonVertices || polygonVertices.length < 2) return;
+      const pts = polygonVertices.map(p => projectPoint(p.lat, p.lng));
+      const xs = pts.map(p => p.x);
+      const ys = pts.map(p => p.y);
+      const minX = Math.max(Math.min(...xs) - 20, 0);
+      const maxX = Math.min(Math.max(...xs) + 20, gl.domElement.width);
+      const minY = Math.max(Math.min(...ys) - 20, 0);
+      const maxY = Math.min(Math.max(...ys) + 20, gl.domElement.height);
+      const crop = {
+        x: minX,
+        y: minY,
+        width: Math.max(1, maxX - minX),
+        height: Math.max(1, maxY - minY)
+      };
+      saveCanvas(gl.domElement, 'region-only.png', crop);
+    };
+
+    window.addEventListener('globe-download', handleGlobe);
+    window.addEventListener('region-download', handleRegion);
+    return () => {
+      window.removeEventListener('globe-download', handleGlobe);
+      window.removeEventListener('region-download', handleRegion);
+    };
+  }, [gl, camera, polygonVertices, globeRadius, offset]);
+
+  return null;
+}
+
 // --- Main Scene Content ---
 function GlobeContent(props) {
   const groupRef = useRef();
   const dataPoints = (props && props.dataPoints) || [];
   const showPath = !!(props && props.showPath);
   const disableAutoRotate = !!(props && props.disableAutoRotate);
+  const isPolygonDrawingMode = !!(props && props.isPolygonDrawingMode);
+  const onPolygonVertexAdd = props && props.onPolygonVertexAdd;
+  const polygonVertices = (props && props.polygonVertices) || [];
   const [isHovered, setIsHovered] = React.useState(false);
   
   useFrame((_, delta) => {
@@ -343,6 +629,11 @@ function GlobeContent(props) {
   }), /*#__PURE__*/React.createElement("directionalLight", {
     position: [5, 10, 5],
     intensity: 0.8
+  }), isPolygonDrawingMode && /*#__PURE__*/React.createElement(PolygonDrawing, {
+    isDrawingMode: isPolygonDrawingMode,
+    onVertexAdd: onPolygonVertexAdd
+  }), polygonVertices.length > 0 && /*#__PURE__*/React.createElement(PolygonRenderer, {
+    vertices: polygonVertices
   }), /*#__PURE__*/React.createElement("group", {
     ref: groupRef
   }, /*#__PURE__*/React.createElement("mesh", {
@@ -516,11 +807,15 @@ export function Globe(props) {
   const minDistance = props && props.minDistance;
   const maxDistance = props && props.maxDistance;
   const disableAutoRotate = !!(props && props.disableAutoRotate);
+  const isPolygonDrawingMode = !!(props && props.isPolygonDrawingMode);
+  const onPolygonVertexAdd = props && props.onPolygonVertexAdd;
+  const polygonVertices = (props && props.polygonVertices) || [];
   return /*#__PURE__*/React.createElement(Canvas, {
     camera: {
       position: [0, 0, 7.5],
       fov: 45
-    }
+    },
+    gl: { preserveDrawingBuffer: true }
   }, /*#__PURE__*/React.createElement(Stars, {
     radius: 100,
     depth: 50,
@@ -538,5 +833,5 @@ export function Globe(props) {
     scale: [200, 200, 200]
   }), /*#__PURE__*/React.createElement(Suspense, {
     fallback: null
-  }, showStarsOnly ? null : /*#__PURE__*/React.createElement(GlobeContent, { dataPoints: dataPoints, showPath: showPath, disableAutoRotate: disableAutoRotate })), /*#__PURE__*/React.createElement(CameraReset, { onReset: onResetCamera, focusOnData: focusOnData, dataPoints: dataPoints, enableRotate: enableRotate, enableZoom: enableZoom, minDistance: minDistance, maxDistance: maxDistance }), /*#__PURE__*/React.createElement(CameraMonitor, { onChange: onCameraDistanceChange }));
+  }, showStarsOnly ? null : /*#__PURE__*/React.createElement(GlobeContent, { dataPoints: dataPoints, showPath: showPath, disableAutoRotate: disableAutoRotate, isPolygonDrawingMode: isPolygonDrawingMode, onPolygonVertexAdd: onPolygonVertexAdd, polygonVertices: polygonVertices })), /*#__PURE__*/React.createElement(CameraReset, { onReset: onResetCamera, focusOnData: focusOnData, dataPoints: dataPoints, enableRotate: enableRotate, enableZoom: enableZoom, minDistance: minDistance, maxDistance: maxDistance }), /*#__PURE__*/React.createElement(CameraMonitor, { onChange: onCameraDistanceChange }), /*#__PURE__*/React.createElement(ScreenshotHandler, { polygonVertices: polygonVertices, globeRadius: 2.06 }));
 }

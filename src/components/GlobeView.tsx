@@ -1894,12 +1894,10 @@ function VisualiseView({ allData }: VisualiseViewProps) {
           </button>
           
           <button
-            onClick={() => setActiveView('VisualSagar')}
-            className={`w-full px-4 py-3 rounded-xl text-left transition-all ${
-              activeView === 'VisualSagar'
-                ? 'bg-white/30 text-white font-semibold'
-                : 'bg-white/10 text-white/80 hover:bg-white/20'
-            }`}
+            onClick={() => {
+              window.location.href = 'https://sagar-visual-globe1.vercel.app/#current/ocean/surface/currents/orthographic';
+            }}
+            className="w-full px-4 py-3 rounded-xl text-left transition-all bg-white/10 text-white/80 hover:bg-white/20"
           >
             VisualSagar
           </button>

@@ -863,10 +863,10 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
 </header>
 
       {activeMode === 'Analyse' ? (
-      <div className="relative pt-20 h-screen flex">
+      <div className="relative pt-16 sm:pt-20 h-screen flex flex-col lg:flex-row">
         {/* Floating left sidebar container without solid background */}
         <motion.div 
-          className={`w-80 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl shadow-black/20 m-4 p-6 overflow-y-auto scrollbar-hide z-20 transition-all ${globeFocused ? 'filter blur-md pointer-events-none' : ''}`}
+          className={`w-full lg:w-80 backdrop-blur-md border border-white/20 rounded-lg sm:rounded-2xl shadow-2xl shadow-black/20 m-2 sm:m-4 p-3 sm:p-4 md:p-6 overflow-y-auto scrollbar-hide z-20 transition-all ${globeFocused ? 'filter blur-md pointer-events-none' : ''} lg:max-h-[calc(100vh-5rem)]`}
           initial={{ x: -320 }}
           animate={{ x: 0 }}
           transition={{ duration: 0.5 }}
@@ -879,11 +879,11 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
 
             {/* Active Data Layer */}
             <div>
-              <h3 className="text-lg font-semibold text-white mb-2">Active Data Layer</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-white mb-2">Active Data Layer</h3>
               <select
                 value={dataLayer}
                 onChange={(e) => setDataLayer(e.target.value as typeof dataLayer)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:border-marine-cyan focus:outline-none backdrop-blur-sm"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white/10 border border-white/20 rounded-lg sm:rounded-xl text-white focus:border-marine-cyan focus:outline-none backdrop-blur-sm text-sm sm:text-base"
               >
                 <option>Species Occurrences</option>
                 <option>Sea Surface Temperature (SST)</option>
@@ -898,10 +898,10 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
 
             {/* Dynamic Filters */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-semibold text-white">Active Filters</h4>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-2">
+                <h4 className="text-xs sm:text-sm font-semibold text-white">Active Filters</h4>
                 <motion.button
-                  className="flex items-center space-x-2 px-3 py-2 bg-white/10 border border-white/20 rounded text-white/90 hover:bg-white/20 transition-all duration-200 backdrop-blur-sm"
+                  className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white/10 border border-white/20 rounded text-white/90 hover:bg-white/20 transition-all duration-200 backdrop-blur-sm text-xs sm:text-sm"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
@@ -934,15 +934,15 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
                     setActiveFilters(prev => [...prev, { type: 'depth', min: depthMin, max: depthMax }]);
                   }}
                 >
-                  <FiPlus className="w-4 h-4" />
-                  <span>Create New Filter</span>
+                  <FiPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="text-xs sm:text-sm">Create New Filter</span>
                 </motion.button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <div>
                   <label className="block text-xs text-white/70 mb-1">Species Name</label>
-                  <input list="species-list" value={newSpecies} onChange={(e) => setNewSpecies(e.target.value)} placeholder="e.g., Harpiliopsis depressa" className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white text-sm focus:border-marine-cyan focus:outline-none backdrop-blur-sm" />
+                  <input list="species-list" value={newSpecies} onChange={(e) => setNewSpecies(e.target.value)} placeholder="e.g., Harpiliopsis depressa" className="w-full px-2 sm:px-3 py-1.5 sm:py-2 bg-white/10 border border-white/20 rounded text-white text-xs sm:text-sm focus:border-marine-cyan focus:outline-none backdrop-blur-sm" />
                   <datalist id="species-list">
                     {uniqueSpecies.slice(0, 100).map(name => (
                       <option key={name} value={name} />
@@ -1170,10 +1170,10 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
 
         {/* Bottom-centered search bar styled like the example; separate layer so globe stays interactive */}
         {!isLoading && (
-          <div className={`pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center z-20 transition-all gap-3 ${globeFocused ? 'filter blur-md' : ''}`}>
+          <div className={`pointer-events-none absolute inset-x-0 bottom-2 sm:bottom-4 md:bottom-6 flex flex-col items-center z-20 transition-all gap-2 sm:gap-3 px-2 sm:px-0 ${globeFocused ? 'filter blur-md' : ''}`}>
             {/* Data Type Selector */}
-            <div className="pointer-events-auto flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/20 rounded-xl px-3 py-2 shadow-lg">
-              <span className="text-xs text-white/70 mr-1">Data Types:</span>
+            <div className="pointer-events-auto flex flex-wrap items-center gap-1.5 sm:gap-2 bg-black/40 backdrop-blur-md border border-white/20 rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-lg">
+              <span className="text-[10px] sm:text-xs text-white/70 mr-0.5 sm:mr-1">Data Types:</span>
               {(['OCCURRENCE', 'CTD', 'AWS', 'ADCP'] as DataType[]).map((type) => (
                 <button
                   key={type}
@@ -1185,7 +1185,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
                         : [...prev, type]
                     );
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-xs transition-all ${
+                  className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-[10px] sm:text-xs transition-all ${
                     selectedDataTypes.includes(type)
                       ? 'bg-marine-cyan/50 border border-marine-cyan text-white font-medium'
                       : 'bg-white/10 border border-white/20 text-white/70 hover:bg-white/15'
@@ -1198,26 +1198,26 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
                 <button
                   type="button"
                   onClick={() => setSelectedDataTypes([])}
-                  className="px-2 py-1 rounded-lg text-xs bg-white/10 border border-white/20 text-white/70 hover:bg-white/15"
+                  className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-[10px] sm:text-xs bg-white/10 border border-white/20 text-white/70 hover:bg-white/15"
                   title="Clear selection (auto-detect)"
                 >
                   Clear
                 </button>
               )}
               {selectedDataTypes.length === 0 && (
-                <span className="text-xs text-white/50 italic">(Auto-detect)</span>
+                <span className="text-[10px] sm:text-xs text-white/50 italic hidden sm:inline">(Auto-detect)</span>
               )}
             </div>
 
             {/* Search Input Form */}
             <form
               onSubmit={(e) => { e.preventDefault(); handleAnalyze(); }}
-              className="pointer-events-auto w-[min(760px,94%)] bg-black/30 backdrop-blur-md border border-white/15 rounded-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.08)] p-2 pl-4 flex items-center gap-3"
+              className="pointer-events-auto w-full sm:w-[min(760px,94%)] bg-black/30 backdrop-blur-md border border-white/15 rounded-xl sm:rounded-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.08)] p-1.5 sm:p-2 pl-2 sm:pl-4 flex items-center gap-2 sm:gap-3"
             >
               <input
                 type="text"
-                placeholder="Ask the Ocean... (e.g., 'What species in Arabian Sea?', 'Show CTD temperature profiles', 'Current speeds in Indian Ocean')"
-                className="flex-1 bg-transparent outline-none text-white placeholder-white/60 tracking-wide disabled:opacity-50 text-sm"
+                placeholder="Ask the Ocean..."
+                className="flex-1 bg-transparent outline-none text-white placeholder-white/60 tracking-wide disabled:opacity-50 text-xs sm:text-sm"
                 value={analysisInput}
                 onChange={(e) => setAnalysisInput(e.target.value)}
                 disabled={isAnalyzing}
@@ -1225,12 +1225,12 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
               <button
                 type="submit"
                 disabled={isAnalyzing || !analysisInput.trim()}
-                className="px-5 py-2 rounded-xl bg-white/10 border border-white/30 text-white hover:bg-white/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-white/10 border border-white/30 text-white hover:bg-white/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm"
               >
                 {isAnalyzing ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Analyzing...</span>
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span className="hidden sm:inline">Analyzing...</span>
                   </>
                 ) : (
                   <span>Analyze</span>
@@ -1243,7 +1243,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
 
         {/* Right-side dataset info cards */}
         {!isLoading && (
-          <aside className={`pointer-events-auto absolute right-4 top-24 z-30 flex flex-col gap-3 w-[300px] max-h-[70vh] overflow-y-auto scrollbar-hide transition-all ${globeFocused ? 'filter blur-md pointer-events-none' : ''}`}>
+          <aside className={`pointer-events-auto absolute right-2 sm:right-4 top-20 sm:top-24 z-30 flex flex-col gap-2 sm:gap-3 w-[calc(100vw-1rem)] sm:w-[280px] md:w-[300px] max-h-[60vh] sm:max-h-[70vh] overflow-y-auto scrollbar-hide transition-all ${globeFocused ? 'filter blur-md pointer-events-none' : ''} hidden lg:flex`}>
             {/* Helper to compute simple metrics inline */}
             {(() => {
               const total = filteredData.length;
@@ -1565,7 +1565,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
       {/* Floating Notes Button */}
       {selectedProject && (
         <motion.div
-          className="fixed bottom-6 right-6 z-50 group"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 group"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
@@ -1580,17 +1580,17 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
             className="relative flex items-center"
           >
             {/* Pill shape that appears on hover */}
-            <div className="absolute right-full mr-2 flex items-center space-x-2 px-4 py-2 bg-marine-cyan text-marine-blue font-semibold rounded-full shadow-lg shadow-marine-cyan/25 whitespace-nowrap opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-200 pointer-events-none">
-              <FiPenTool className="w-4 h-4" />
-              <span className="text-sm">Notes</span>
+            <div className="absolute right-full mr-2 flex items-center space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-marine-cyan text-marine-blue font-semibold rounded-full shadow-lg shadow-marine-cyan/25 whitespace-nowrap opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-200 pointer-events-none hidden sm:flex">
+              <FiPenTool className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="text-xs sm:text-sm">Notes</span>
             </div>
             {/* Circular button */}
             <motion.div
-              className="w-14 h-14 rounded-full bg-marine-cyan text-marine-blue flex items-center justify-center shadow-lg shadow-marine-cyan/25 hover:shadow-xl hover:shadow-marine-cyan/40 transition-all duration-200"
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-marine-cyan text-marine-blue flex items-center justify-center shadow-lg shadow-marine-cyan/25 hover:shadow-xl hover:shadow-marine-cyan/40 transition-all duration-200"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <FiPenTool className="w-6 h-6" />
+              <FiPenTool className="w-5 h-5 sm:w-6 sm:h-6" />
             </motion.div>
           </button>
         </motion.div>
@@ -1603,22 +1603,22 @@ const GlobeView: React.FC<GlobeViewProps> = ({ selectedProject, onShowSearchResu
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed top-0 right-0 h-full w-full max-w-2xl bg-gray-900/95 backdrop-blur-md border-l border-gray-700/50 z-[100] shadow-2xl overflow-y-auto"
+          className="fixed top-0 right-0 h-full w-full sm:max-w-2xl bg-gray-900/95 backdrop-blur-md border-l border-gray-700/50 z-[100] shadow-2xl overflow-y-auto"
         >
-          <div className="sticky top-0 bg-gray-900/95 backdrop-blur-md border-b border-gray-700/50 px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <FiPenTool className="w-6 h-6 text-marine-cyan" />
-              <h2 className="text-2xl font-bold text-white">Notes</h2>
+          <div className="sticky top-0 bg-gray-900/95 backdrop-blur-md border-b border-gray-700/50 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <FiPenTool className="w-5 h-5 sm:w-6 sm:h-6 text-marine-cyan" />
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Notes</h2>
             </div>
             <button
               onClick={() => setShowNotesPanel(false)}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+              className="p-1.5 sm:p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
             >
-              <FiX className="w-5 h-5" />
+              <FiX className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {!selectedProject ? (
               <div className="py-16 text-center">
                 <FiFileText className="w-16 h-16 text-gray-600 mx-auto mb-4" />
@@ -1876,7 +1876,7 @@ function VisualiseView({ allData }: VisualiseViewProps) {
   };
 
   return (
-    <div className="pt-20 min-h-screen relative flex">
+    <div className="pt-16 sm:pt-20 min-h-screen relative flex flex-col lg:flex-row">
       {/* Starry Background - Same as Study Module */}
       <Suspense fallback={null}>
         <div className="absolute inset-0 z-0 pointer-events-none opacity-90">
@@ -1885,13 +1885,13 @@ function VisualiseView({ allData }: VisualiseViewProps) {
       </Suspense>
       
       {/* Sidebar */}
-      <div className="relative z-10 w-80 bg-white/5 backdrop-blur-md border-r border-white/20 p-6 overflow-y-auto">
-        <h2 className="text-2xl font-bold text-white mb-6">Visualise</h2>
+      <div className="relative z-10 w-full lg:w-80 bg-white/5 backdrop-blur-md border-b lg:border-b-0 lg:border-r border-white/20 p-4 sm:p-6 overflow-y-auto">
+        <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Visualise</h2>
         
-        <div className="space-y-2">
+        <div className="space-y-2 flex flex-row lg:flex-col gap-2 lg:gap-0">
           <button
             onClick={() => setActiveView('Migration Pattern')}
-            className={`w-full px-4 py-3 rounded-xl text-left transition-all ${
+            className={`flex-1 lg:w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl text-left transition-all text-sm sm:text-base ${
               activeView === 'Migration Pattern'
                 ? 'bg-white/30 text-white font-semibold'
                 : 'bg-white/10 text-white/80 hover:bg-white/20'
@@ -1904,7 +1904,7 @@ function VisualiseView({ allData }: VisualiseViewProps) {
             onClick={() => {
               window.location.href = 'https://sagar-visual-globe1.vercel.app/#current/ocean/surface/currents/orthographic';
             }}
-            className="w-full px-4 py-3 rounded-xl text-left transition-all bg-white/10 text-white/80 hover:bg-white/20"
+            className="flex-1 lg:w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl text-left transition-all bg-white/10 text-white/80 hover:bg-white/20 text-sm sm:text-base"
           >
             VisualSagar
           </button>
@@ -1912,22 +1912,22 @@ function VisualiseView({ allData }: VisualiseViewProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className="relative z-10 flex-1 p-8 overflow-y-auto">
+      <div className="relative z-10 flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
         {activeView === 'Migration Pattern' ? (
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white/5 backdrop-blur-md border border-white/15 rounded-2xl p-6">
-              <h3 className="text-xl font-bold text-white mb-6">Migration Pattern Prediction</h3>
+            <div className="bg-white/5 backdrop-blur-md border border-white/15 rounded-lg sm:rounded-2xl p-4 sm:p-6">
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-4 sm:mb-6">Migration Pattern Prediction</h3>
               
-              <div className="space-y-4 mb-6">
+              <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Species Name</label>
+                  <label className="block text-xs sm:text-sm text-white/70 mb-1 sm:mb-2">Species Name</label>
                   <input
                     type="text"
                     value={speciesName}
                     onChange={(e) => setSpeciesName(e.target.value)}
                     placeholder="e.g., mackerel"
                     list="species-list"
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white/10 border border-white/20 rounded-lg sm:rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none"
                   />
                   <datalist id="species-list">
                     {availableSpecies.map((species) => (
@@ -1937,36 +1937,36 @@ function VisualiseView({ allData }: VisualiseViewProps) {
                 </div>
                 
                 <div>
-                  <label className="block text-sm text-white/70 mb-2">Number of Future Months to Predict (1-24)</label>
+                  <label className="block text-xs sm:text-sm text-white/70 mb-1 sm:mb-2">Number of Future Months to Predict (1-24)</label>
                   <input
                     type="number"
                     min={1}
                     max={24}
                     value={months}
                     onChange={(e) => setMonths(Math.max(1, Math.min(24, parseInt(e.target.value) || 6)))}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white/10 border border-white/20 rounded-lg sm:rounded-xl text-white text-sm focus:border-marine-cyan focus:outline-none"
                   />
                 </div>
                 
                 <button
                   onClick={fetchMigrationPattern}
                   disabled={isLoadingMigration || !speciesName.trim()}
-                  className="w-full px-6 py-3 bg-marine-cyan/80 hover:bg-marine-cyan text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 sm:px-6 py-2 sm:py-3 bg-marine-cyan/80 hover:bg-marine-cyan text-white font-semibold rounded-lg sm:rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                 >
                   {isLoadingMigration ? 'Loading...' : 'Predict Migration Pattern'}
                 </button>
               </div>
 
               {migrationError && (
-                <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm">
+                <div className="mb-4 p-3 sm:p-4 bg-red-500/20 border border-red-500/50 rounded-lg sm:rounded-xl text-red-200 text-xs sm:text-sm">
                   {migrationError}
                 </div>
               )}
 
               {migrationData && (
-                <div className="mt-6 space-y-4">
-                  <div className="bg-white/5 border border-white/15 rounded-xl p-4">
-                    <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="mt-4 sm:mt-6 space-y-3 sm:space-y-4">
+                  <div className="bg-white/5 border border-white/15 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
                       <div>
                         <span className="text-white/70 text-sm">Species:</span>
                         <p className="text-white font-semibold">{migrationData.species}</p>
@@ -1986,25 +1986,25 @@ function VisualiseView({ allData }: VisualiseViewProps) {
                     </div>
                   </div>
 
-                  <div className="bg-white/5 border border-white/15 rounded-xl p-4">
-                    <h4 className="text-white font-semibold mb-3">Migration Points</h4>
-                    <div className="max-h-96 overflow-y-auto">
-                      <table className="w-full text-sm">
+                  <div className="bg-white/5 border border-white/15 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                    <h4 className="text-white font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Migration Points</h4>
+                    <div className="max-h-64 sm:max-h-96 overflow-y-auto overflow-x-auto">
+                      <table className="w-full text-xs sm:text-sm">
                         <thead>
                           <tr className="border-b border-white/20">
-                            <th className="text-left text-white/70 py-2 px-2">Year</th>
-                            <th className="text-left text-white/70 py-2 px-2">Month</th>
-                            <th className="text-left text-white/70 py-2 px-2">Latitude</th>
-                            <th className="text-left text-white/70 py-2 px-2">Longitude</th>
+                            <th className="text-left text-white/70 py-1.5 sm:py-2 px-1 sm:px-2">Year</th>
+                            <th className="text-left text-white/70 py-1.5 sm:py-2 px-1 sm:px-2">Month</th>
+                            <th className="text-left text-white/70 py-1.5 sm:py-2 px-1 sm:px-2">Latitude</th>
+                            <th className="text-left text-white/70 py-1.5 sm:py-2 px-1 sm:px-2">Longitude</th>
                           </tr>
                         </thead>
                         <tbody>
                           {migrationData.points.map((point, idx) => (
                             <tr key={idx} className="border-b border-white/10">
-                              <td className="text-white py-2 px-2">{point.year}</td>
-                              <td className="text-white py-2 px-2">{point.month}</td>
-                              <td className="text-white py-2 px-2">{point.latitude.toFixed(4)}</td>
-                              <td className="text-white py-2 px-2">{point.longitude.toFixed(4)}</td>
+                              <td className="text-white py-1.5 sm:py-2 px-1 sm:px-2">{point.year}</td>
+                              <td className="text-white py-1.5 sm:py-2 px-1 sm:px-2">{point.month}</td>
+                              <td className="text-white py-1.5 sm:py-2 px-1 sm:px-2">{point.latitude.toFixed(4)}</td>
+                              <td className="text-white py-1.5 sm:py-2 px-1 sm:px-2">{point.longitude.toFixed(4)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -2012,9 +2012,9 @@ function VisualiseView({ allData }: VisualiseViewProps) {
                     </div>
                   </div>
 
-                  <div className="bg-white/5 border border-white/15 rounded-xl p-4">
-                    <h4 className="text-white font-semibold mb-3">Migration Path</h4>
-                    <div className="w-full aspect-square bg-black/20 rounded-xl overflow-hidden relative">
+                  <div className="bg-white/5 border border-white/15 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                    <h4 className="text-white font-semibold mb-2 sm:mb-3 text-sm sm:text-base">Migration Path</h4>
+                    <div className="w-full aspect-square bg-black/20 rounded-lg sm:rounded-xl overflow-hidden relative">
                       <Suspense fallback={
                         <div className="w-full h-full flex items-center justify-center text-white/60">
                           Loading globe...
@@ -2044,9 +2044,9 @@ function VisualiseView({ allData }: VisualiseViewProps) {
           </div>
         ) : (
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white/5 backdrop-blur-md border border-white/15 rounded-2xl p-6">
-              <h3 className="text-xl font-bold text-white mb-4">VisualSagar</h3>
-              <p className="text-white/70">VisualSagar content coming soon...</p>
+            <div className="bg-white/5 backdrop-blur-md border border-white/15 rounded-lg sm:rounded-2xl p-4 sm:p-6">
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">VisualSagar</h3>
+              <p className="text-white/70 text-sm sm:text-base">VisualSagar content coming soon...</p>
             </div>
           </div>
         )}
@@ -3480,20 +3480,20 @@ function StudyView({ selectedProject }: { selectedProject: Project | null }) {
   const [tab, setTab] = useState<'Taxonomy' | 'Otolith' | 'eDNA' | 'Species identification' | 'Notes'>('Taxonomy');
   const [search, setSearch] = useState('');
   return (
-    <div className="pt-20 min-h-screen relative">
+    <div className="pt-16 sm:pt-20 min-h-screen relative">
       <Suspense fallback={null}>
         <div className="absolute inset-0 z-0 pointer-events-none opacity-90">
           <ReactGlobeComponent dataPoints={[]} onDataPointClick={() => {}} onCameraDistanceChange={undefined} showStarsOnly />
         </div>
       </Suspense>
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
-        <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3 sm:mb-4 overflow-x-auto pb-2">
           {(['Taxonomy','Otolith','eDNA','Species identification','Notes'] as const).map(name => (
-            <button key={name} onClick={() => setTab(name)} className={`px-4 py-2 rounded-xl border text-sm ${tab===name ? 'border-white/40 bg-white/10 text-white' : 'border-white/20 text-white/80 hover:bg-white/10'}`}>{name}</button>
+            <button key={name} onClick={() => setTab(name)} className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border text-xs sm:text-sm whitespace-nowrap ${tab===name ? 'border-white/40 bg-white/10 text-white' : 'border-white/20 text-white/80 hover:bg-white/10'}`}>{name}</button>
           ))}
           <div className="flex-1" />
         </div>
-        <div className="bg-black/30 backdrop-blur-md border border-white/15 rounded-2xl p-4">
+        <div className="bg-black/30 backdrop-blur-md border border-white/15 rounded-lg sm:rounded-2xl p-3 sm:p-4 md:p-6">
           {tab === 'Taxonomy' && <TaxonomyModule globalSearch={search} />}
           {tab === 'Otolith' && <OtolithModule globalSearch={search} />}
           {tab === 'eDNA' && <EDNAModule globalSearch={search} />}

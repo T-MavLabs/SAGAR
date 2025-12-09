@@ -72,28 +72,28 @@ const LandingPage: React.FC<{ onEnter: () => void; onVesselLogin: () => void; on
       </div>
       {/* Logout Button */}
       {onLogout && (
-        <div className="absolute top-6 right-6 z-30">
+        <div className="absolute top-3 right-3 sm:top-6 sm:right-6 z-30">
           <button 
             onClick={onLogout}
-            className="flex items-center space-x-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200 text-white"
+            className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200 text-white text-xs sm:text-sm"
           >
-            <FiLogOut className="w-4 h-4" />
-            <span>Logout</span>
+            <FiLogOut className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       )}
-      <div className="relative z-10 max-w-5xl mx-auto px-6 py-24 text-center">
-        <h1 ref={titleRef} className="text-5xl md:text-6xl font-extrabold tracking-tight" style={{ transform: 'translateY(20px)', opacity: 0 }}>
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16 md:py-24 text-center">
+        <h1 ref={titleRef} className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight" style={{ transform: 'translateY(20px)', opacity: 0 }}>
           SAGAR
         </h1>
-        <p ref={subtitleRef} className="mt-4 text-lg text-gray-300" style={{ transform: 'translateY(20px)', opacity: 0 }}>
+        <p ref={subtitleRef} className="mt-3 sm:mt-4 text-sm sm:text-base md:text-lg text-gray-300 px-4" style={{ transform: 'translateY(20px)', opacity: 0 }}>
           Spatio-temporal Analytics Gateway for Aquatic Resources
         </p>
-        <div className="mt-10 flex flex-col items-center gap-4">
+        <div className="mt-6 sm:mt-8 md:mt-10 flex flex-col items-center gap-3 sm:gap-4">
           <button
             ref={ctaRef}
             onClick={onEnter}
-            className="px-6 py-3 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all"
+            className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 bg-marine-cyan text-marine-blue font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-cyan/25 transition-all text-sm sm:text-base"
             style={{ transform: 'scale(0.9)', opacity: 0 }}
           >
             Enter Dashboard
@@ -101,7 +101,7 @@ const LandingPage: React.FC<{ onEnter: () => void; onVesselLogin: () => void; on
           <button
             ref={vesselLoginRef}
             onClick={onVesselLogin}
-            className="px-6 py-3 bg-marine-teal text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-teal/25 transition-all"
+            className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 bg-marine-teal text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-marine-teal/25 transition-all text-sm sm:text-base"
             style={{ transform: 'scale(0.9)', opacity: 0 }}
           >
             Vessel Login

@@ -86,34 +86,34 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           <MemoizedWorldMap />
         </div>
       </div>
-      <div className="relative z-10 flex items-center justify-center min-h-screen px-6 py-12">
+      <div className="relative z-10 flex items-center justify-center min-h-screen px-4 sm:px-6 py-8 sm:py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="w-full max-w-md"
         >
-          <div className="bg-black/30 backdrop-blur-md border border-white/20 rounded-2xl p-8 shadow-2xl">
+          <div className="bg-black/30 backdrop-blur-md border border-white/20 rounded-xl sm:rounded-2xl p-6 sm:p-8 shadow-2xl">
             {/* Logo/Title */}
-            <div className="text-center mb-8">
-              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-2">
+            <div className="text-center mb-6 sm:mb-8">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mb-2">
                 SAGAR
               </h1>
-              <p className="text-gray-300 text-sm mt-2">
+              <p className="text-gray-300 text-xs sm:text-sm mt-2">
                 Marine Research Platform
               </p>
             </div>
 
             {/* Login Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Username Field */}
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="username" className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
                   Username
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FiUser className="h-5 w-5 text-gray-400" />
+                    <FiUser className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   </div>
                   <input
                     ref={usernameRef}
@@ -124,7 +124,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                       setUsername(e.target.value);
                       setError('');
                     }}
-                    className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all"
+                    className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2.5 sm:py-3 bg-white/10 border border-white/20 rounded-lg sm:rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all text-sm sm:text-base"
                     placeholder="Enter your username"
                     required
                     autoComplete="username"
@@ -134,12 +134,12 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
               {/* Password Field */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
                   Password
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FiLock className="h-5 w-5 text-gray-400" />
+                    <FiLock className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   </div>
                   <input
                     ref={passwordRef}
@@ -150,7 +150,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                       setPassword(e.target.value);
                       setError('');
                     }}
-                    className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all"
+                    className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2.5 sm:py-3 bg-white/10 border border-white/20 rounded-lg sm:rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all text-sm sm:text-base"
                     placeholder="Enter your password"
                     required
                     autoComplete="current-password"
@@ -160,12 +160,12 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
               {/* Role Selection Field */}
               <div>
-                <label htmlFor="role" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="role" className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
                   Role
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FiBriefcase className="h-5 w-5 text-gray-400" />
+                    <FiBriefcase className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   </div>
                   <select
                     id="role"
@@ -174,7 +174,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                       setRole(e.target.value);
                       setError('');
                     }}
-                    className="w-full pl-10 pr-10 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all appearance-none cursor-pointer"
+                    className="w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2.5 sm:py-3 bg-white/10 border border-white/20 rounded-lg sm:rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all appearance-none cursor-pointer text-sm sm:text-base"
                     style={{
                       color: role ? 'white' : 'rgba(156, 163, 175, 0.6)',
                     }}
@@ -193,7 +193,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                   {/* Custom dropdown arrow */}
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <svg
-                      className="h-5 w-5 text-gray-400"
+                      className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400"
                       fill="none"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -212,7 +212,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-sm"
+                  className="p-2.5 sm:p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-xs sm:text-sm"
                 >
                   {error}
                 </motion.div>
@@ -222,16 +222,16 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 px-4 bg-marine-cyan/80 hover:bg-marine-cyan text-marine-blue font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:shadow-marine-cyan/25"
+                className="w-full py-2.5 sm:py-3 px-4 bg-marine-cyan/80 hover:bg-marine-cyan text-marine-blue font-semibold rounded-lg sm:rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:shadow-marine-cyan/25 text-sm sm:text-base"
               >
                 {isLoading ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-marine-blue border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-marine-blue border-t-transparent rounded-full animate-spin"></div>
                     <span>Logging in...</span>
                   </>
                 ) : (
                   <>
-                    <FiLogIn className="w-5 h-5" />
+                    <FiLogIn className="w-4 h-4 sm:w-5 sm:h-5" />
                     <span>Login</span>
                   </>
                 )}
@@ -239,7 +239,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             </form>
 
             {/* Footer */}
-            <div className="mt-6 text-center text-sm text-gray-400">
+            <div className="mt-4 sm:mt-6 text-center text-xs sm:text-sm text-gray-400">
               <p>© 2025 SAGAR - Marine Research Platform</p>
             </div>
           </div>

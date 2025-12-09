@@ -325,28 +325,28 @@ const VesselLogin: React.FC<VesselLoginProps> = ({ onBack }) => {
     <div className="min-h-screen bg-marine-blue text-white">
       {/* Header */}
       <header className="bg-marine-dark/50 backdrop-blur-sm border-b border-marine-cyan/20 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4">
               <button
                 onClick={onBack}
-                className="p-2 hover:bg-marine-cyan/20 rounded-lg transition-colors"
+                className="p-1.5 sm:p-2 hover:bg-marine-cyan/20 rounded-lg transition-colors"
               >
-                <FiArrowLeft className="w-5 h-5" />
+                <FiArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-              <h1 className="text-2xl font-bold">Vessel Telemetry</h1>
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold">Vessel Telemetry</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {apiAvailable === true && (
-                <span className="flex items-center gap-2 text-green-400">
-                  <FiCheckCircle className="w-4 h-4" />
-                  <span className="text-sm">API Connected</span>
+                <span className="flex items-center gap-1 sm:gap-2 text-green-400">
+                  <FiCheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="text-xs sm:text-sm hidden sm:inline">API Connected</span>
                 </span>
               )}
               {apiAvailable === false && (
-                <span className="flex items-center gap-2 text-red-400">
-                  <FiAlertCircle className="w-4 h-4" />
-                  <span className="text-sm">API Disconnected</span>
+                <span className="flex items-center gap-1 sm:gap-2 text-red-400">
+                  <FiAlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="text-xs sm:text-sm hidden sm:inline">API Disconnected</span>
                 </span>
               )}
             </div>
@@ -355,16 +355,16 @@ const VesselLogin: React.FC<VesselLoginProps> = ({ onBack }) => {
       </header>
 
       {/* Main Content */}
-      <main className="flex gap-6 max-w-7xl mx-auto px-6 py-8">
+      <main className="flex flex-col lg:flex-row gap-4 sm:gap-6 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
         {/* Calendar Sidebar */}
         <motion.aside
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="w-80 flex-shrink-0 bg-marine-dark/50 backdrop-blur-sm rounded-lg p-4 border border-marine-cyan/20 h-fit sticky top-24"
+          className="w-full lg:w-80 flex-shrink-0 bg-marine-dark/50 backdrop-blur-sm rounded-lg p-3 sm:p-4 border border-marine-cyan/20 h-fit lg:sticky lg:top-20"
         >
-          <div className="flex items-center gap-3 mb-4">
-            <FiCalendar className="w-5 h-5 text-marine-cyan" />
-            <h2 className="text-lg font-semibold">Calendar</h2>
+          <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <FiCalendar className="w-4 h-4 sm:w-5 sm:h-5 text-marine-cyan" />
+            <h2 className="text-base sm:text-lg font-semibold">Calendar</h2>
           </div>
 
           {/* Month Navigation */}
@@ -476,7 +476,7 @@ const VesselLogin: React.FC<VesselLoginProps> = ({ onBack }) => {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`mb-6 p-4 rounded-lg ${
+            className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg ${
               processingStatus.type === 'success' 
                 ? 'bg-green-500/20 border border-green-500/50' 
                 : processingStatus.type === 'error'
@@ -485,69 +485,71 @@ const VesselLogin: React.FC<VesselLoginProps> = ({ onBack }) => {
             }`}
           >
             <div className="flex items-center gap-2">
-              {processingStatus.type === 'success' && <FiCheckCircle className="w-5 h-5 text-green-400" />}
-              {processingStatus.type === 'error' && <FiAlertCircle className="w-5 h-5 text-red-400" />}
-              {processingStatus.type === 'info' && <FiActivity className="w-5 h-5 text-blue-400" />}
-              <p>{processingStatus.message}</p>
+              {processingStatus.type === 'success' && <FiCheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />}
+              {processingStatus.type === 'error' && <FiAlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 flex-shrink-0" />}
+              {processingStatus.type === 'info' && <FiActivity className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 flex-shrink-0" />}
+              <p className="text-sm sm:text-base">{processingStatus.message}</p>
             </div>
           </motion.div>
         )}
 
         {/* Control Panel */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Data Collection Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-marine-dark/50 backdrop-blur-sm rounded-lg p-6 border border-marine-cyan/20"
+            className="bg-marine-dark/50 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-marine-cyan/20"
           >
-            <div className="flex items-center gap-3 mb-4">
-              <FiActivity className="w-6 h-6 text-marine-cyan" />
-              <h2 className="text-xl font-semibold">Data Collection</h2>
+            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <FiActivity className="w-5 h-5 sm:w-6 sm:h-6 text-marine-cyan" />
+              <h2 className="text-lg sm:text-xl font-semibold">Data Collection</h2>
             </div>
             
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-gray-300">Status:</span>
                 <span className={`font-semibold ${isCollecting ? 'text-green-400' : 'text-gray-400'}`}>
                   {isCollecting ? 'Collecting...' : 'Stopped'}
                 </span>
               </div>
               
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-gray-300">Data Points:</span>
                 <span className="font-semibold">{telemetryData.length}</span>
               </div>
               
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-gray-300">Data Size:</span>
                 <span className="font-semibold">{formatFileSize(dataSize)}</span>
               </div>
               
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-gray-300">Threshold:</span>
-                <input
-                  type="number"
-                  value={threshold / 1024}
-                  onChange={(e) => setThreshold(Number(e.target.value) * 1024)}
-                  disabled={isCollecting}
-                  className="w-24 px-2 py-1 bg-marine-dark border border-marine-cyan/30 rounded text-white text-sm"
-                  min="1"
-                />
-                <span className="text-sm text-gray-400">KB</span>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <input
+                    type="number"
+                    value={threshold / 1024}
+                    onChange={(e) => setThreshold(Number(e.target.value) * 1024)}
+                    disabled={isCollecting}
+                    className="w-20 sm:w-24 px-2 py-1 bg-marine-dark border border-marine-cyan/30 rounded text-white text-xs sm:text-sm"
+                    min="1"
+                  />
+                  <span className="text-xs sm:text-sm text-gray-400">KB</span>
+                </div>
               </div>
               
-              <div className="pt-4 border-t border-marine-cyan/20">
-                <div className="w-full bg-marine-dark rounded-full h-2 mb-4">
+              <div className="pt-3 sm:pt-4 border-t border-marine-cyan/20">
+                <div className="w-full bg-marine-dark rounded-full h-2 mb-3 sm:mb-4">
                   <div
                     className="bg-marine-cyan h-2 rounded-full transition-all duration-300"
                     style={{ width: `${Math.min((dataSize / threshold) * 100, 100)}%` }}
                   />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <button
                     onClick={toggleCollection}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
+                    className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all text-sm sm:text-base ${
                       isCollecting
                         ? 'bg-red-600 hover:bg-red-700 text-white'
                         : 'bg-marine-cyan hover:bg-marine-cyan/80 text-marine-blue'
@@ -555,20 +557,20 @@ const VesselLogin: React.FC<VesselLoginProps> = ({ onBack }) => {
                   >
                     {isCollecting ? (
                       <>
-                        <FiSquare className="w-4 h-4" />
-                        Stop Collection
+                        <FiSquare className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span>Stop Collection</span>
                       </>
                     ) : (
                       <>
-                        <FiPlay className="w-4 h-4" />
-                        Start Collection
+                        <FiPlay className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span>Start Collection</span>
                       </>
                     )}
                   </button>
                   <button
                     onClick={handleManualSend}
                     disabled={telemetryData.length === 0 || isCollecting}
-                    className="px-4 py-2 bg-marine-teal hover:bg-marine-teal/80 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold transition-all"
+                    className="px-3 sm:px-4 py-2 bg-marine-teal hover:bg-marine-teal/80 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold transition-all text-sm sm:text-base"
                   >
                     Send Now
                   </button>
@@ -582,20 +584,20 @@ const VesselLogin: React.FC<VesselLoginProps> = ({ onBack }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-marine-dark/50 backdrop-blur-sm rounded-lg p-6 border border-marine-cyan/20"
+            className="bg-marine-dark/50 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-marine-cyan/20"
           >
-            <div className="flex items-center gap-3 mb-4">
-              <FiDatabase className="w-6 h-6 text-marine-cyan" />
-              <h2 className="text-xl font-semibold">Processing Status</h2>
+            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <FiDatabase className="w-5 h-5 sm:w-6 sm:h-6 text-marine-cyan" />
+              <h2 className="text-lg sm:text-xl font-semibold">Processing Status</h2>
             </div>
             
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-gray-300">Files Processed:</span>
                 <span className="font-semibold">{processedFiles.length}</span>
               </div>
               
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-gray-300">API Status:</span>
                 <span className={`font-semibold ${
                   apiAvailable === true ? 'text-green-400' : 
@@ -609,9 +611,9 @@ const VesselLogin: React.FC<VesselLoginProps> = ({ onBack }) => {
               </div>
               
               {processedFiles.length > 0 && (
-                <div className="pt-4 border-t border-marine-cyan/20">
-                  <p className="text-sm text-gray-400 mb-2">Latest File:</p>
-                  <p className="text-sm font-mono text-marine-cyan truncate">
+                <div className="pt-3 sm:pt-4 border-t border-marine-cyan/20">
+                  <p className="text-xs sm:text-sm text-gray-400 mb-1 sm:mb-2">Latest File:</p>
+                  <p className="text-xs sm:text-sm font-mono text-marine-cyan truncate">
                     {processedFiles[processedFiles.length - 1].filename}
                   </p>
                 </div>
@@ -625,11 +627,11 @@ const VesselLogin: React.FC<VesselLoginProps> = ({ onBack }) => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-marine-dark/50 backdrop-blur-sm rounded-lg p-6 border border-marine-cyan/20"
+            className="bg-marine-dark/50 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-marine-cyan/20"
           >
-            <div className="text-center py-8">
-              <FiActivity className="w-8 h-8 text-marine-cyan mx-auto mb-4 animate-pulse" />
-              <p className="text-gray-400">Loading files from Supabase...</p>
+            <div className="text-center py-6 sm:py-8">
+              <FiActivity className="w-6 h-6 sm:w-8 sm:h-8 text-marine-cyan mx-auto mb-3 sm:mb-4 animate-pulse" />
+              <p className="text-sm sm:text-base text-gray-400">Loading files from Supabase...</p>
             </div>
           </motion.div>
         ) : processedFiles.length > 0 ? (
@@ -637,26 +639,26 @@ const VesselLogin: React.FC<VesselLoginProps> = ({ onBack }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-marine-dark/50 backdrop-blur-sm rounded-lg p-6 border border-marine-cyan/20"
+            className="bg-marine-dark/50 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-marine-cyan/20"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <FiDatabase className="w-5 h-5 text-marine-cyan" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-2">
+                <FiDatabase className="w-4 h-4 sm:w-5 sm:h-5 text-marine-cyan" />
                 Processed Files ({filteredFiles.length})
               </h2>
               <button
                 onClick={refreshFiles}
-                className="flex items-center gap-2 px-3 py-1.5 bg-marine-cyan/20 hover:bg-marine-cyan/30 border border-marine-cyan/50 rounded-lg text-sm font-semibold text-marine-cyan transition-all"
+                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 bg-marine-cyan/20 hover:bg-marine-cyan/30 border border-marine-cyan/50 rounded-lg text-xs sm:text-sm font-semibold text-marine-cyan transition-all"
                 title="Refresh files from Supabase"
               >
-                <FiActivity className="w-4 h-4" />
+                <FiActivity className="w-3 h-3 sm:w-4 sm:h-4" />
                 Refresh
               </button>
             </div>
             
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {filteredFiles.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-6 sm:py-8 text-gray-400 text-sm sm:text-base">
                   {selectedDate ? (
                     <p>No files uploaded on {selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                   ) : (
@@ -667,18 +669,18 @@ const VesselLogin: React.FC<VesselLoginProps> = ({ onBack }) => {
                 filteredFiles.slice().reverse().map((file, index) => (
                 <div
                   key={index}
-                  className="bg-marine-dark/30 rounded-lg p-4 border border-marine-cyan/10"
+                  className="bg-marine-dark/30 rounded-lg p-3 sm:p-4 border border-marine-cyan/10"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <p className="font-semibold text-marine-cyan">{file.filename}</p>
-                      <p className="text-sm text-gray-400 mt-1">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-2 sm:gap-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-marine-cyan text-sm sm:text-base break-words">{file.filename}</p>
+                      <p className="text-xs sm:text-sm text-gray-400 mt-1">
                         {new Date(file.timestamp).toLocaleString()} • {file.dataPoints} data points
                       </p>
                     </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                     {file.qualityReport && (
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold ${
                           file.qualityReport.summary?.quality_status === 'GOOD' 
                             ? 'bg-green-500/20 text-green-400'
@@ -696,10 +698,11 @@ const VesselLogin: React.FC<VesselLoginProps> = ({ onBack }) => {
                     {file.qualityReport && (
                       <button
                         onClick={() => setSelectedReport(file.qualityReport)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-marine-cyan/20 hover:bg-marine-cyan/30 border border-marine-cyan/50 rounded-lg text-sm font-semibold text-marine-cyan transition-all"
+                        className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 bg-marine-cyan/20 hover:bg-marine-cyan/30 border border-marine-cyan/50 rounded-lg text-xs sm:text-sm font-semibold text-marine-cyan transition-all flex-shrink-0"
                       >
-                        <FiFileText className="w-4 h-4" />
-                        View Report
+                        <FiFileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">View Report</span>
+                        <span className="sm:hidden">View</span>
                       </button>
                     )}
                   </div>

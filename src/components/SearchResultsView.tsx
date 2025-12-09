@@ -1317,12 +1317,12 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
     <div className="w-full bg-black">
       {/* Back button */}
       {onBack && (
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-white transition-colors duration-200"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 hover:text-white transition-colors duration-200 text-sm sm:text-base"
           >
-            <FiArrowRight className="w-4 h-4 rotate-180" />
+            <FiArrowRight className="w-3 h-3 sm:w-4 sm:h-4 rotate-180" />
             <span>Back to Globe</span>
           </button>
         </div>
@@ -1330,18 +1330,18 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
 
       {/* Zoom Mode Layout */}
       {isZoomMode && selectedChart ? (
-        <div className="flex h-screen">
+        <div className="flex flex-col lg:flex-row h-screen">
           {/* Sidebar with all charts */}
-          <div className="w-80 bg-gray-900/50 backdrop-blur-sm border-r border-gray-700/50 overflow-y-auto">
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Charts</h3>
+          <div className="w-full lg:w-80 bg-gray-900/50 backdrop-blur-sm border-b lg:border-b-0 lg:border-r border-gray-700/50 overflow-y-auto">
+            <div className="p-3 sm:p-4">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <h3 className="text-base sm:text-lg font-semibold text-white">Charts</h3>
                 <button
                   onClick={handleExitZoom}
-                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                  className="p-1.5 sm:p-2 text-gray-400 hover:text-white transition-colors"
                   title="Exit Zoom Mode"
                 >
-                  <FiMinimize2 className="w-4 h-4" />
+                  <FiMinimize2 className="w-3 h-3 sm:w-4 sm:h-4" />
                 </button>
               </div>
               
@@ -1367,17 +1367,17 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
           </div>
 
           {/* Main zoomed chart area */}
-          <div className="flex-1 p-6">
-            <div className="h-full bg-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-white">
+          <div className="flex-1 p-3 sm:p-4 md:p-6">
+            <div className="h-full bg-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">
                   {chartDefinitions.find(c => c.id === selectedChart)?.title}
                 </h2>
                 <button
                   onClick={handleExitZoom}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-white transition-colors duration-200"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-gray-300 hover:text-white transition-colors duration-200 text-sm sm:text-base"
                 >
-                  <FiMinimize2 className="w-4 h-4" />
+                  <FiMinimize2 className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span>Exit Zoom</span>
                 </button>
               </div>
@@ -1390,11 +1390,11 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
         </div>
       ) : (
         /* Normal Layout */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Left Column - Analysis Summary */}
         <section className={`${cardClass} lg:col-span-1`}>
-          <div className="flex items-start justify-between mb-4">
-            <h2 className="text-xl font-bold text-white">{scientificName}</h2>
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-white break-words">{scientificName}</h2>
           </div>
           {/* Description - Use dashboard summary if available, otherwise RAG answer */}
           {dashboardSummary ? (
@@ -1564,16 +1564,16 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
 
           {/* Statistics Cards - Only show if we have RAG data */}
           {ragOccurrences.length > 0 && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gray-800/40 border border-gray-700/50 rounded-lg p-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div className="bg-gray-800/40 border border-gray-700/50 rounded-lg p-2 sm:p-3">
                 <div className={labelClass}>Total Occurrences</div>
-                <div className={`mt-1 ${valueClass} text-lg text-marine-cyan font-semibold`}>
+                <div className={`mt-1 ${valueClass} text-base sm:text-lg text-marine-cyan font-semibold`}>
                   {ragSourcesCount || ragOccurrences.length}
             </div>
             </div>
-            <div className="bg-gray-800/40 border border-gray-700/50 rounded-lg p-3">
+            <div className="bg-gray-800/40 border border-gray-700/50 rounded-lg p-2 sm:p-3">
                 <div className={labelClass}>Unique Species</div>
-                <div className={`mt-1 ${valueClass} text-lg text-green-400 font-semibold`}>
+                <div className={`mt-1 ${valueClass} text-base sm:text-lg text-green-400 font-semibold`}>
                   {(() => {
                     const species = new Set(ragOccurrences.map(o => o.scientificName).filter(Boolean));
                     return species.size || 0;
@@ -1642,10 +1642,10 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
 
         {/* Right Column - Charts and Map */}
         <section className={`${cardClass} lg:col-span-2`}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Geographic Distribution</h3>
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h3 className="text-base sm:text-lg font-semibold text-white">Geographic Distribution</h3>
           </div>
-          <div className="h-64 mb-6">
+          <div className="h-48 sm:h-64 mb-4 sm:mb-6">
             <SearchWorldMap
               dataPoints={globePoints.map(point => ({
                 lat: point.decimalLatitude,
@@ -1665,9 +1665,9 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
           </div>
 
           {/* Interactive Globe Section - Below Geographic Distribution */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Interactive Globe</h3>
-            <div className="h-80 rounded-lg overflow-hidden border border-gray-700/50 sagar-result-globe">
+          <div className="mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Interactive Globe</h3>
+            <div className="h-64 sm:h-80 rounded-lg overflow-hidden border border-gray-700/50 sagar-result-globe">
               {globePoints.length > 0 ? (
                 <ReactGlobeComponent
                   dataPoints={globePoints}
@@ -1683,9 +1683,9 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
 
           {/* Query-Specific Marine Data Records - Grouped by Type */}
           {ragOccurrences.length > 0 && (
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <div className="mb-4 sm:mb-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+                <h3 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
                   <div className="w-1 h-1 bg-marine-cyan rounded-full"></div>
                   Query-Specific Records ({ragOccurrences.length})
                 </h3>
@@ -1695,7 +1695,7 @@ const SearchResultsView: React.FC<SearchResultsViewProps> = ({ result, onViewOnG
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mb-3">
+              <p className="text-xs text-gray-400 mb-2 sm:mb-3">
                 Marine data records matching your query criteria, grouped by data type
               </p>
               

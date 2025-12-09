@@ -126,27 +126,27 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack, onLogout, o
     <div className="min-h-screen bg-marine-blue">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-marine-blue/95 backdrop-blur-sm border-b border-marine-cyan/20">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4">
+          <div className="flex items-center justify-between gap-2">
             {/* Logo */}
             <motion.div 
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center overflow-hidden">
                 <img 
                   src="/WhatsApp Image 2025-09-29 at 03.04.02.jpeg" 
                   alt="SAGAR Logo" 
                   className="w-full h-full object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-white">SAGAR</span>
+              <span className="text-base sm:text-lg md:text-xl font-bold text-white">SAGAR</span>
             </motion.div>
 
             {/* Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
+            <nav className="hidden md:flex items-center space-x-4 lg:space-x-8">
               {(() => {
                 // Get user role from localStorage
                 const userRole = localStorage.getItem('sagar:role') || '';
@@ -200,18 +200,18 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack, onLogout, o
 
             {/* User Info & Logout */}
             <motion.div 
-              className="flex items-center space-x-4"
+              className="flex items-center space-x-2 sm:space-x-4"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <span className="text-sm text-gray-300">Welcome, Dr. Vinu</span>
+              <span className="hidden sm:inline text-xs sm:text-sm text-gray-300">Welcome, Dr. Vinu</span>
               <button 
                 onClick={onLogout}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200"
+                className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200 text-xs sm:text-sm"
               >
-                <FiLogOut className="w-4 h-4" />
-                <span>Logout</span>
+                <FiLogOut className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Logout</span>
               </button>
             </motion.div>
           </div>
@@ -219,31 +219,31 @@ const APIDocumentation: React.FC<APIDocumentationProps> = ({ onBack, onLogout, o
       </header>
 
       {/* Main Content */}
-      <main className="pt-24 px-6">
+      <main className="pt-16 sm:pt-20 md:pt-24 px-3 sm:px-4 md:px-6">
         <div className="max-w-7xl mx-auto">
           {/* Hero Section */}
           <motion.div 
-            className="text-center mb-12"
+            className="text-center mb-8 sm:mb-10 md:mb-12"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 sm:mb-4">
               Interactive API Explorer
             </h1>
-            <p className="text-lg text-gray-300 max-w-3xl mx-auto">
+            <p className="text-sm sm:text-base md:text-lg text-gray-300 max-w-3xl mx-auto px-2">
               Explore marine biodiversity data through our comprehensive API endpoints. Test queries, visualize results, and understand data structures interactively.
             </p>
           </motion.div>
 
           {/* Tab Navigation */}
           <motion.div 
-            className="mb-8"
+            className="mb-6 sm:mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               {tabs.map((tab) => (
                 <motion.button
                   key={tab.id}

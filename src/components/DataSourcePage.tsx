@@ -227,88 +227,89 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
     <div className="min-h-screen bg-marine-blue">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-marine-blue/95 backdrop-blur-sm border-b border-marine-cyan/20">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4">
+          <div className="flex items-center justify-between gap-2">
             {/* Logo */}
             <motion.div 
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center overflow-hidden">
                 <img 
                   src="/WhatsApp Image 2025-09-29 at 03.04.02.jpeg" 
                   alt="SAGAR Logo" 
                   className="w-full h-full object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-white">SAGAR</span>
+              <span className="text-base sm:text-lg md:text-xl font-bold text-white">SAGAR</span>
             </motion.div>
 
             {/* Back Button */}
             <motion.button
               onClick={onBack}
-              className="flex items-center space-x-2 px-4 py-2 bg-marine-cyan/20 hover:bg-marine-cyan/30 border border-marine-cyan/30 rounded-lg transition-colors duration-200"
+              className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-marine-cyan/20 hover:bg-marine-cyan/30 border border-marine-cyan/30 rounded-lg transition-colors duration-200 text-xs sm:text-sm"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <FiArrowLeft className="w-4 h-4" />
-              <span>Back to Dashboard</span>
+              <FiArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Back to Dashboard</span>
+              <span className="sm:hidden">Back</span>
             </motion.button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="pt-24 px-6">
+      <main className="pt-16 sm:pt-20 md:pt-24 px-3 sm:px-4 md:px-6">
         <div className="max-w-6xl mx-auto">
           {/* Page Header */}
           <motion.div 
-            className="mb-12"
+            className="mb-8 sm:mb-10 md:mb-12"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-4xl font-bold text-white">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
                 Data Sources & Research Collaboration
               </h1>
               <motion.a
                 href="https://data-ingestion-frontend-sagar.vercel.app/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center space-x-2 px-6 py-3 bg-marine-cyan hover:bg-marine-cyan/80 text-marine-blue font-semibold rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
+                className="w-full sm:w-auto flex items-center justify-center space-x-1.5 sm:space-x-2 px-4 sm:px-6 py-2 sm:py-3 bg-marine-cyan hover:bg-marine-cyan/80 text-marine-blue font-semibold rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl text-sm sm:text-base"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
-                <FiDatabase className="w-5 h-5" />
+                <FiDatabase className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Ingest Data</span>
-                <FiExternalLink className="w-4 h-4" />
+                <FiExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
               </motion.a>
             </div>
-            <p className="text-xl text-gray-300">
+            <p className="text-base sm:text-lg md:text-xl text-gray-300">
               Information about our datasets and collaboration with CLMRE (Centre for Learning in Marine and Earth Sciences)
             </p>
           </motion.div>
 
           {/* Research Collaboration and Datasets Section */}
           <motion.section 
-            className="mb-12"
+            className="mb-8 sm:mb-10 md:mb-12"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
               {/* Research Collaboration - Left Side (Full Height) */}
-              <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-6">
-                <div className="flex items-center space-x-3 mb-4">
-                  <FiMail className="w-5 h-5 text-marine-cyan" />
-                  <h2 className="text-xl font-semibold text-white">Research Collaboration</h2>
+              <div className="bg-gray-900/50 border border-gray-700 rounded-lg sm:rounded-xl p-4 sm:p-6">
+                <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
+                  <FiMail className="w-4 h-4 sm:w-5 sm:h-5 text-marine-cyan" />
+                  <h2 className="text-lg sm:text-xl font-semibold text-white">Research Collaboration</h2>
                 </div>
                 
                 <div className="mb-4">

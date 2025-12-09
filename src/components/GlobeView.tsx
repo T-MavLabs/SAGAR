@@ -1877,6 +1877,13 @@ function VisualiseView({ allData }: VisualiseViewProps) {
 
   return (
     <div className="pt-20 min-h-screen relative flex">
+      {/* Starry Background - Same as Study Module */}
+      <Suspense fallback={null}>
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-90">
+          <ReactGlobeComponent dataPoints={[]} onDataPointClick={() => {}} onCameraDistanceChange={undefined} showStarsOnly />
+        </div>
+      </Suspense>
+      
       {/* Sidebar */}
       <div className="relative z-10 w-80 bg-white/5 backdrop-blur-md border-r border-white/20 p-6 overflow-y-auto">
         <h2 className="text-2xl font-bold text-white mb-6">Visualise</h2>

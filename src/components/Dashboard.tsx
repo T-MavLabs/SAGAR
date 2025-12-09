@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { FiPlus, FiArrowLeft, FiHome, FiInfo, FiDatabase, FiDollarSign } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiPlus, FiArrowLeft, FiHome, FiInfo, FiDatabase, FiDollarSign, FiX, FiGlobe, FiAward } from 'react-icons/fi';
 import ProjectCard from './ProjectCard';
 import { Project } from '../App';
 import { supabase } from '../services/supabaseClient';
@@ -23,6 +23,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
   const [formWaterBody, setFormWaterBody] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => {
@@ -143,7 +145,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
                 
                 // Build navigation items array
                 const navItems = [
-                  { name: 'Home', icon: FiHome, href: '#', onClick: undefined, isExternal: false },
+                  { name: 'Home', icon: FiHome, href: '#', onClick: undefined, isExternal: false, active: true },
                   ...(canAccessDataSources ? [{ name: 'Data Sources', icon: FiDatabase, href: 'https://data-ingestion-frontend-sagar.vercel.app/', onClick: undefined, isExternal: true }] : []),
                   { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: onNavigateToAPI, isExternal: false }
                 ];
@@ -168,7 +170,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
                   <motion.button
                     key={item.name}
                     onClick={item.onClick}
-                    className="flex items-center space-x-2 text-gray-300 hover:text-marine-cyan transition-colors duration-200"
+                    className={`flex items-center space-x-2 transition-colors duration-200 ${
+                      item.active 
+                        ? 'text-marine-cyan' 
+                        : 'text-gray-300 hover:text-marine-cyan'
+                    }`}
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -178,6 +184,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
                   </motion.button>
                 )
               ))}
+              
+              <button
+                onClick={() => setIsAboutOpen(true)}
+                className="flex items-center space-x-2 text-gray-300 hover:text-marine-cyan transition-colors duration-200"
+              >
+                <FiInfo className="w-4 h-4" />
+                <span>About</span>
+              </button>
             </nav>
 
             {/* User Info & Back Button */}
@@ -315,6 +329,132 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
           </div>
         </div>
       )}
+
+      {/* About Modal */}
+      <AnimatePresence>
+        {isAboutOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+              onClick={() => setIsAboutOpen(false)}
+            />
+            <motion.div 
+              className="relative w-full max-w-2xl bg-gray-900 border border-marine-cyan/30 rounded-2xl shadow-2xl overflow-hidden"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Modal Header */}
+              <div className="relative h-32 bg-gradient-to-r from-marine-blue to-marine-teal/30 p-8 flex items-end">
+                <div className="absolute top-4 right-4">
+                  <button
+                    onClick={() => setIsAboutOpen(false)}
+                    className="p-2 text-white/50 hover:text-white bg-black/20 hover:bg-black/40 rounded-full transition-colors"
+                  >
+                    <FiX className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden shadow-xl border-2 border-marine-cyan/50 bg-black">
+                    <img 
+                      src="/WhatsApp Image 2025-09-29 at 03.04.02.jpeg" 
+                      alt="SAGAR Logo" 
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">About SAGAR</h2>
+                    <p className="text-marine-cyan text-sm font-medium">Spatio-temporal Analytics Gateway for Aquatic Resources</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-8 space-y-8">
+                {/* Platform Description */}
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                    <FiGlobe className="w-5 h-5 mr-2 text-marine-cyan" />
+                    Platform Overview
+                  </h3>
+                  <p className="text-gray-300 leading-relaxed text-sm">
+                    SAGAR is a comprehensive, cloud-native platform designed to revolutionize marine biological research. 
+                    By integrating advanced data processing engines, Retrieval-Augmented Generation (RAG) capabilities, 
+                    and specialized AI/ML services, we provide researchers with powerful tools to analyze, visualize, 
+                    and understand oceanographic data and marine biodiversity patterns.
+                  </p>
+                </div>
+
+                {/* Data Sources & Acknowledgements */}
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                    <FiAward className="w-5 h-5 mr-2 text-marine-cyan" />
+                    Data Sources & Acknowledgements
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50 hover:border-marine-cyan/30 transition-colors">
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-medium text-white">CLMRE</h4>
+                        <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full">Partner</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-2">Centre for Learning in Marine and Earth Sciences</p>
+                      <ul className="text-xs text-gray-300 space-y-1 list-disc list-inside">
+                        <li>ADCP (Acoustic Doppler Current Profiler) Data</li>
+                        <li>AWS (Automatic Weather Station) Data</li>
+                        <li>CTD (Conductivity, Temperature, Depth) Data</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50 hover:border-marine-cyan/30 transition-colors">
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-medium text-white">GBIF</h4>
+                        <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full">Global</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-2">Global Biodiversity Information Facility</p>
+                      <p className="text-xs text-gray-300">
+                        Primary source for marine species occurrence records and taxonomic backbones.
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50 hover:border-marine-cyan/30 transition-colors">
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-medium text-white">NOAA</h4>
+                        <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full">Agency</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-2">National Oceanic and Atmospheric Administration</p>
+                      <p className="text-xs text-gray-300">
+                        Oceanographic datasets, bathymetry, and marine environmental data references.
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50 hover:border-marine-cyan/30 transition-colors">
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-medium text-white">IUCN</h4>
+                        <span className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full">Conservation</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-2">International Union for Conservation of Nature</p>
+                      <p className="text-xs text-gray-300">
+                        Red List data for species conservation status and threat assessments.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="pt-6 border-t border-gray-700 text-center">
+                  <p className="text-xs text-gray-500">
+                    Developed with ❤️ for the marine research community.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

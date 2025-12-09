@@ -41,12 +41,28 @@ function App() {
     return localStorage.getItem('sagar:authenticated') === 'true';
   });
 
+  // Utility function to check if user can access Data Sources
+  const canAccessDataSources = (): boolean => {
+    const userRole = localStorage.getItem('sagar:role') || '';
+    const allowedRoles = ['principal_scientist', 'senior_scientist', 'scientist', 'junior_scientist'];
+    return allowedRoles.includes(userRole);
+  };
+
   // Initialize view based on current URL
   const getInitialView = () => {
     const path = window.location.pathname;
     if (path === '/api-docs' || path === '/api-documentation') return 'api-docs';
     if (path === '/dashboard') return 'dashboard';
-    if (path === '/data-sources') return 'data-sources';
+    if (path === '/data-sources') {
+      // Check if user has access to data sources
+      const userRole = localStorage.getItem('sagar:role') || '';
+      const allowedRoles = ['principal_scientist', 'senior_scientist', 'scientist', 'junior_scientist'];
+      if (!allowedRoles.includes(userRole)) {
+        // Redirect to dashboard if user doesn't have access
+        return 'dashboard';
+      }
+      return 'data-sources';
+    }
     if (path.startsWith('/project/')) return 'globe';
     if (path === '/globe') return 'globe';
     if (path === '/search') return 'search';
@@ -69,6 +85,7 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('sagar:authenticated');
     localStorage.removeItem('sagar:username');
+    localStorage.removeItem('sagar:role');
     setIsAuthenticated(false);
     setCurrentView('landing');
   };
@@ -132,7 +149,16 @@ function App() {
       } else if (path === '/dashboard') {
         setCurrentView('dashboard');
       } else if (path === '/data-sources') {
-        setCurrentView('data-sources');
+        // Check if user has access to data sources
+        const userRole = localStorage.getItem('sagar:role') || '';
+        const allowedRoles = ['principal_scientist', 'senior_scientist', 'scientist', 'junior_scientist'];
+        if (allowedRoles.includes(userRole)) {
+          setCurrentView('data-sources');
+        } else {
+          // Redirect to dashboard if user doesn't have access
+          setCurrentView('dashboard');
+          window.history.pushState({}, '', '/dashboard');
+        }
       } else if (path.startsWith('/project/')) {
         // Extract project ID from URL
         const projectId = path.replace('/project/', '');
@@ -342,7 +368,11 @@ function App() {
             <Dashboard 
               onProjectSelect={handleProjectSelect} 
               onNavigateToAPI={() => setCurrentView('api-docs')} 
-              onNavigateToDataSources={() => setCurrentView('data-sources')}
+              onNavigateToDataSources={() => {
+                if (canAccessDataSources()) {
+                  setCurrentView('data-sources');
+                }
+              }}
               onNavigateToLanding={handleNavigateToLanding}
             />
           </motion.div>
@@ -405,22 +435,43 @@ function App() {
             <APIDocumentation 
               onBack={() => setCurrentView('dashboard')} 
               onLogout={handleLogout}
-              onNavigateToDataSources={() => setCurrentView('data-sources')}
+              onNavigateToDataSources={() => {
+                if (canAccessDataSources()) {
+                  setCurrentView('data-sources');
+                }
+              }}
             />
           </motion.div>
         ) : currentView === 'data-sources' ? (
-          <motion.div
-            key="data-sources"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <DataSourcePage 
-              onBack={() => setCurrentView('dashboard')} 
-              onLogout={handleLogout}
-            />
-          </motion.div>
+          canAccessDataSources() ? (
+            <motion.div
+              key="data-sources"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <DataSourcePage 
+                onBack={() => setCurrentView('dashboard')} 
+                onLogout={handleLogout}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="data-sources-redirect"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Dashboard 
+                onProjectSelect={handleProjectSelect} 
+                onNavigateToAPI={() => setCurrentView('api-docs')} 
+                onNavigateToDataSources={() => setCurrentView('data-sources')}
+                onNavigateToLanding={handleNavigateToLanding}
+              />
+            </motion.div>
+          )
         ) : currentView === 'vessel-login' ? (
           <motion.div
             key="vessel-login"

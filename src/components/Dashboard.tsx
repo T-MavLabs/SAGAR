@@ -133,11 +133,23 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              {[
-                { name: 'Home', icon: FiHome, href: '#', onClick: undefined, isExternal: false },
-                { name: 'Data Sources', icon: FiDatabase, href: 'https://data-ingestion-frontend-sagar.vercel.app/', onClick: undefined, isExternal: true },
-                { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: onNavigateToAPI, isExternal: false }
-              ].map((item, index) => (
+              {(() => {
+                // Get user role from localStorage
+                const userRole = localStorage.getItem('sagar:role') || '';
+                
+                // Allowed roles that can see Data Sources
+                const allowedRoles = ['principal_scientist', 'senior_scientist', 'scientist', 'junior_scientist'];
+                const canAccessDataSources = allowedRoles.includes(userRole);
+                
+                // Build navigation items array
+                const navItems = [
+                  { name: 'Home', icon: FiHome, href: '#', onClick: undefined, isExternal: false },
+                  ...(canAccessDataSources ? [{ name: 'Data Sources', icon: FiDatabase, href: 'https://data-ingestion-frontend-sagar.vercel.app/', onClick: undefined, isExternal: true }] : []),
+                  { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: onNavigateToAPI, isExternal: false }
+                ];
+                
+                return navItems;
+              })().map((item, index) => (
                 item.isExternal ? (
                   <motion.a
                     key={item.name}

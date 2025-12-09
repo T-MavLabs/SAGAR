@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { FiLock, FiUser, FiLogIn } from 'react-icons/fi';
+import { FiLock, FiUser, FiLogIn, FiBriefcase } from 'react-icons/fi';
 import WorldMap from './ui/world-map';
 
 interface LoginProps {
@@ -13,10 +13,26 @@ const MemoizedWorldMap = React.memo(WorldMap);
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+
+  // Scientist roles
+  const scientistRoles = [
+    { value: '', label: 'Select your role' },
+    { value: 'principal_scientist', label: 'Principal Scientist' },
+    { value: 'senior_scientist', label: 'Senior Scientist' },
+    { value: 'scientist', label: 'Scientist' },
+    { value: 'junior_scientist', label: 'Junior Scientist' },
+    { value: 'researcher', label: 'Researcher' },
+    { value: 'research_associate', label: 'Research Associate' },
+    { value: 'postdoc', label: 'Postdoctoral Researcher' },
+    { value: 'phd_student', label: 'PhD Student' },
+    { value: 'masters_student', label: 'Masters Student' },
+    { value: 'intern', label: 'Intern' },
+  ];
 
   useEffect(() => {
     // Focus on username field when component mounts
@@ -34,11 +50,19 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     const validUsername = process.env.REACT_APP_LOGIN_USERNAME || 'CBSIR';
     const validPassword = process.env.REACT_APP_LOGIN_PASSWORD || 'LORD_CBSIR';
 
+    // Validate role selection
+    if (!role) {
+      setError('Please select your role');
+      setIsLoading(false);
+      return;
+    }
+
     // Check credentials immediately (no artificial delay)
     if (username === validUsername && password === validPassword) {
       // Store authentication state
       localStorage.setItem('sagar:authenticated', 'true');
       localStorage.setItem('sagar:username', username);
+      localStorage.setItem('sagar:role', role);
       // Small delay only for visual feedback
       setTimeout(() => {
         setIsLoading(false);
@@ -53,7 +77,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         passwordRef.current.focus();
       }
     }
-  }, [username, password, onLoginSuccess]);
+  }, [username, password, role, onLoginSuccess]);
 
   return (
     <div className="min-h-screen bg-marine-blue text-white overflow-hidden relative">
@@ -131,6 +155,55 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     required
                     autoComplete="current-password"
                   />
+                </div>
+              </div>
+
+              {/* Role Selection Field */}
+              <div>
+                <label htmlFor="role" className="block text-sm font-medium text-gray-300 mb-2">
+                  Role
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiBriefcase className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <select
+                    id="role"
+                    value={role}
+                    onChange={(e) => {
+                      setRole(e.target.value);
+                      setError('');
+                    }}
+                    className="w-full pl-10 pr-10 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all appearance-none cursor-pointer"
+                    style={{
+                      color: role ? 'white' : 'rgba(156, 163, 175, 0.6)',
+                    }}
+                    required
+                  >
+                    {scientistRoles.map((roleOption) => (
+                      <option
+                        key={roleOption.value}
+                        value={roleOption.value}
+                        style={{ backgroundColor: '#111827', color: 'white' }}
+                      >
+                        {roleOption.label}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Custom dropdown arrow */}
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <svg
+                      className="h-5 w-5 text-gray-400"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
                 </div>
               </div>
 

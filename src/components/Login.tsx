@@ -47,8 +47,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     // Get credentials from environment variables with fallback defaults
-    const validUsername = process.env.REACT_APP_LOGIN_USERNAME || 'CBSIR';
-    const validPassword = process.env.REACT_APP_LOGIN_PASSWORD || 'LORD_CBSIR';
+    const validUsername = process.env.REACT_APP_LOGIN_USERNAME || 'ADMIN';
+    const validPassword = process.env.REACT_APP_LOGIN_PASSWORD || 'ADMIN123';
 
     // Validate role selection
     if (!role) {
@@ -104,6 +104,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               </p>
             </div>
 
+            {/* Login Instructions */}
+            <div className="mb-6 p-4 bg-marine-cyan/20 border border-marine-cyan/40 rounded-xl">
+              <p className="text-sm text-gray-200 leading-relaxed">
+                <strong className="text-marine-cyan">Login Instructions:</strong> Use the credentials shown below as your login and password, and select <strong className="text-marine-cyan">Principal Scientist</strong> to access all features.
+              </p>
+            </div>
+
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Username Field */}
@@ -124,12 +131,14 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                       setUsername(e.target.value);
                       setError('');
                     }}
-                    className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all"
-                    placeholder="Enter your username"
+                    className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all"
                     required
                     autoComplete="username"
                   />
                 </div>
+                <p className="mt-1 text-xs text-gray-400">
+                  ID: {process.env.REACT_APP_LOGIN_USERNAME || 'ADMIN'}
+                </p>
               </div>
 
               {/* Password Field */}
@@ -150,12 +159,14 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                       setPassword(e.target.value);
                       setError('');
                     }}
-                    className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all"
-                    placeholder="Enter your password"
+                    className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-marine-cyan focus:border-transparent transition-all"
                     required
                     autoComplete="current-password"
                   />
                 </div>
+                <p className="mt-1 text-xs text-gray-400">
+                  Password: {process.env.REACT_APP_LOGIN_PASSWORD || 'ADMIN123'}
+                </p>
               </div>
 
               {/* Role Selection Field */}

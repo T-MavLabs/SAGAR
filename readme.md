@@ -252,13 +252,13 @@ Four scientist-oriented modules with consistent grey glass UI:
    REACT_APP_TAXONOMY_API_URL=https://taxa-2.vercel.app
    
    # Login Credentials
-   REACT_APP_LOGIN_USERNAME=CBSIR
-   REACT_APP_LOGIN_PASSWORD=LORD_CBSIR
+   REACT_APP_LOGIN_USERNAME=ADMIN
+   REACT_APP_LOGIN_PASSWORD=ADMIN123
    ```
    
    **Note**: 
    - The Otolith, eDNA, Species ID, and Taxonomy API URLs have defaults and don't need to be configured unless using custom endpoints.
-   - Login credentials default to `CBSIR` / `CBSIR` if not specified in the `.env` file.
+   - Login credentials default to `ADMIN` / `ADMIN` if not specified in the `.env` file.
 
 4. **Start the development server**
    ```bash

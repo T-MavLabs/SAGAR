@@ -146,7 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectSelect, onNavigateToAPI,
                 // Build navigation items array
                 const navItems = [
                   { name: 'Home', icon: FiHome, href: '#', onClick: undefined, isExternal: false, active: true },
-                  ...(canAccessDataSources ? [{ name: 'Data Sources', icon: FiDatabase, href: 'https://data-ingestion-frontend-sagar.vercel.app/', onClick: undefined, isExternal: true }] : []),
+                  ...(canAccessDataSources ? [{ name: 'Data Sources', icon: FiDatabase, href: 'https://data-ingestion-frontend-sagar.netlify.app/', onClick: undefined, isExternal: true }] : []),
                   { name: 'API Documentation', icon: FiDollarSign, href: '#', onClick: onNavigateToAPI, isExternal: false }
                 ];
                 

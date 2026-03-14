@@ -276,7 +276,7 @@ const DataSourcePage: React.FC<DataSourcePageProps> = ({ onBack, onLogout }) => 
                 Data Sources & Research Collaboration
               </h1>
               <motion.a
-                href="https://data-ingestion-frontend-sagar.vercel.app/"
+                href="https://data-ingestion-frontend-sagar.netlify.app/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-2 px-6 py-3 bg-marine-cyan hover:bg-marine-cyan/80 text-marine-blue font-semibold rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl"

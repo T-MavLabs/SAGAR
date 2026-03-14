@@ -2148,7 +2148,7 @@ function VisualiseView({ allData }: VisualiseViewProps) {
           
           <button
             onClick={() => {
-              window.location.href = 'https://sagar-visual-globe1.vercel.app/#current/ocean/surface/currents/orthographic';
+              window.location.href = 'https://sagar-visual-globe1.netlify.app/#current/ocean/surface/currents/orthographic';
             }}
             className="w-full px-4 py-3 rounded-xl text-left transition-all bg-white/10 text-white/80 hover:bg-white/20"
           >

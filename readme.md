@@ -1,6 +1,6 @@
 # SAGAR - Marine Scientific Analysis Dashboard
 
-**SAGAR** (Spacio-Temporal Analytics Gateway for Aquatic Research) is a comprehensive, interactive web application for marine biodiversity and oceanographic data analysis. Built with React, Three.js, and integrated with **SagarManthan-RAG** for AI-powered intelligent querying.
+**SAGAR** (Spatio-Temporal Analytics Gateway for Aquatic Research) is a comprehensive, interactive web application for marine biodiversity and oceanographic data analysis. Built with React, Three.js, and integrated with **SagarManthan-RAG** for AI-powered intelligent querying.
 
 ## Overview
 
